@@ -1,28 +1,15 @@
-# Tolerance.io
+# Tolerance — Autoimmunity Strategy Game
 
-Tolerance.io is a standalone browser game inspired by Catan and designed to teach the basics of autoimmunity for a general audience.
+This folder contains a standalone browser game. Open `index.html` locally, or deploy this folder to GitHub Pages, Netlify, or Vercel.
 
-## Run locally
+## What changed in the combined version
 
-Open `index.html` in any modern browser.
+- Keeps the polished parchment/title-screen feel from the uploaded Tolerance prototype.
+- Keeps the clearer setup guidance, cost chips, build panel, and legal placement highlights from the newer Tolerance.io prototype.
+- Uses report-aligned resources: Cytokine, B-Cell, T-Cell, Myeloid, and Tolerance Insight.
+- Uses report-aligned therapy cards: Anti-Cytokine Therapy, B-Cell Depletion, Low-Dose IL-2 / Treg Boost, T-Cell Pathway Planning, Tolerogenic APC Reset, and Precision Breakthrough.
+- Adds educational “Did you know” log entries during play without interrupting gameplay.
 
-## Put it online
+## Deployment
 
-### GitHub Pages
-1. Create a new GitHub repository.
-2. Upload `index.html`.
-3. In repository settings, enable **GitHub Pages** for the main branch.
-4. Your game will be live at the Pages URL GitHub gives you.
-
-### Netlify
-1. Drag the folder onto Netlify Drop.
-2. Netlify will instantly host it.
-
-### Vercel
-1. Create a new project.
-2. Upload the folder.
-3. Deploy.
-
-## Notes
-- This is a hotseat browser game, not a networked multiplayer server.
-- It is designed to be simple, playable, and educational.
+Upload the entire folder to any static host. No backend or build step is required.
