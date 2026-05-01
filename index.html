@@ -106,7 +106,6 @@
     }
 
 
-    /* Combined-build polish from the uploaded Tolerance prototype */
     .title-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 12% 18%, rgba(139,111,176,0.12), transparent 34%), radial-gradient(circle at 88% 78%, rgba(47,107,107,0.10), transparent 38%), linear-gradient(180deg, #f4ede1 0%, #ebe1d0 100%); color: #1d2330; font-family: 'Inter Tight', Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .title-card-warm { width: min(980px, 100%); background: #faf6ec; border: 1px solid #c8bea9; border-radius: 6px; padding: clamp(28px, 5vw, 58px); box-shadow: 0 2px 6px rgba(20,15,5,0.10), 0 18px 50px rgba(20,15,5,0.16); position: relative; overflow: hidden; }
     .title-card-warm::before { content: ""; position: absolute; inset: 9px; border: 1px solid #ddd2bb; pointer-events: none; border-radius: 3px; }
@@ -151,7 +150,22 @@
     const R = Object.fromEntries(RESOURCES.map(r => [r.key, r]));
     const PLAYER_COLORS = ['#22c55e', '#f97316', '#60a5fa', '#f472b6'];
     const DEFAULT_NAMES = ['Green', 'Orange', 'Blue', 'Pink'];
-    const TISSUES = ['Joint', 'Skin', 'Gut', 'Brain', 'Pancreas', 'Kidney', 'Lung', 'Liver', 'Blood', 'Lymph', 'Synovium', 'Nerve', 'Eye', 'Muscle', 'Colon', 'Thyroid', 'Vessel', 'Bone Marrow', 'Spleen'];
+    const SITES = [
+      'Joint', 'Joint', 'Skin', 'Skin', 'Gut', 'Gut',
+      'CNS', 'CNS', 'Pancreas', 'Pancreas', 'Kidney', 'Kidney',
+      'Eye', 'Eye', 'Lymph Node', 'Lymph Node', 'Bone Marrow', 'Bone Marrow'
+    ];
+    const SITE_INFO = {
+      'Joint': 'A rheumatoid-arthritis-style site: inflamed joint tissue is a classic setting for cytokine, B-cell, T-cell, and myeloid-driven disease.',
+      'Skin': 'A psoriasis-style site: a useful example where cytokine pathways such as IL-23/IL-17 can be highly important.',
+      'Gut': 'An inflammatory-bowel-disease-style site: it teaches that a pathway can help in one tissue but cause problems in another.',
+      'CNS': 'A multiple-sclerosis-style site: immune activity in the brain and spinal cord can damage myelin and nerves.',
+      'Pancreas': 'A type-1-diabetes-style site: immune attack on insulin-producing beta cells shows how autoimmunity can target a specific cell type.',
+      'Kidney': 'A lupus-nephritis-style site: autoantibodies and inflammation can damage filtering tissue in the kidney.',
+      'Eye': 'A uveitis-style site: useful for showing that autoimmune inflammation can affect specialized, delicate tissues.',
+      'Lymph Node': 'A coordination site where immune cells meet, become activated, and exchange signals.',
+      'Bone Marrow': 'A source of immune cells, including B-cell development and many myeloid-lineage cells.'
+    };
     const NUMBER_TOKENS = [5, 2, 6, 3, 8, 10, 9, 12, 11, 4, 8, 10, 9, 4, 5, 6, 3, 11];
     const VICTORY_TARGET = 10;
     const COSTS = {
@@ -162,10 +176,10 @@
     };
     const THERAPY_TEMPLATE = [
       ...Array.from({length: 5}, () => ({ kind: 'blockade', title: 'Anti-Cytokine Therapy', effect: 'Move the flare to any tile and steal 1 random resource from a nearby opponent, if possible.', learn: 'This stands in for therapies that block dominant inflammatory cytokines.' })),
-      ...Array.from({length: 4}, () => ({ kind: 'monopoly', title: 'B-Cell Depletion', effect: 'Choose 1 resource type. Take all cards of that type from all opponents.', learn: 'This stands in for therapies that strongly disrupt B-cell-driven disease.' })),
+      ...Array.from({length: 4}, () => ({ kind: 'monopoly', title: 'B-Cell Depletion', effect: 'Choose 1 resource type. Take all cards of that type from all opponents.', learn: 'This stands in for B-cell-targeting therapies that can interrupt autoantibody production and immune activation.' })),
       ...Array.from({length: 4}, () => ({ kind: 'plenty', title: 'Low-Dose IL-2 / Treg Boost', effect: 'Take any 2 resources from the bank.', learn: 'This represents tolerance-restoring strategies that expand regulatory T cells.' })),
-      ...Array.from({length: 3}, () => ({ kind: 'roads', title: 'T-Cell Pathway Planning', effect: 'Build 2 free pathways.', learn: 'This represents therapies that reshape T-cell signaling or activation pathways.' })),
-      ...Array.from({length: 3}, () => ({ kind: 'plenty', title: 'Tolerogenic APC Reset', effect: 'Take any 2 resources from the bank.', learn: 'This represents myeloid and tolerogenic APC strategies that try to re-educate the immune system.' })),
+      ...Array.from({length: 3}, () => ({ kind: 'roads', title: 'T-Cell Modulation', effect: 'Build 2 free pathways.', learn: 'This represents therapies that reduce harmful T-cell activation, such as costimulation blockade or checkpoint agonism.' })),
+      ...Array.from({length: 3}, () => ({ kind: 'plenty', title: 'Tolerogenic APC Reset', effect: 'Take any 2 resources from the bank.', learn: 'This represents dendritic-cell/myeloid strategies that try to present self-antigens in a tolerance-promoting way.' })),
       ...Array.from({length: 5}, () => ({ kind: 'vp', title: 'Precision Breakthrough', effect: 'Hidden 1 victory point.', learn: 'The field is moving toward more precise, durable immune recalibration.' })),
     ];
 
@@ -254,9 +268,11 @@
         'trigger'
       ]);
       const numbers = NUMBER_TOKENS.slice();
+      const sites = shuffle(SITES);
       const tiles = coords.map((coord, i) => {
         const center = axialToPixel(coord.q, coord.r, size);
         const type = types[i];
+        const tissue = type === 'trigger' ? 'Trigger' : sites.shift();
         return {
           id: i,
           q: coord.q,
@@ -264,7 +280,7 @@
           x: center.x,
           y: center.y,
           size,
-          tissue: TISSUES[i],
+          tissue,
           type,
           number: type === 'trigger' ? null : numbers.shift(),
           corners: getHexCorners(center, size),
@@ -327,8 +343,8 @@
         flareTileId: board.tiles.find(t => t.type === 'trigger').id,
         selectedTileId: null,
         selectedCardIndex: null,
-        infoText: 'Click a glowing dot to place your first clinic. Clinics cannot touch each other.',
-        log: ['EDU:Autoimmunity is misdirected immunity: the immune system attacks healthy tissue because self-tolerance has failed.', 'Welcome to Tolerance. Build clinics, research centers, and therapy strategies to restore immune balance.'],
+        infoText: 'Click a glowing dot to place your first clinic. Clinics cannot touch each other. The board focuses on key autoimmune disease sites, not every organ.',
+        log: ['EDU:Autoimmunity is misdirected immunity: the immune system attacks healthy tissue because self-tolerance has failed.', 'Welcome to Tolerance. Build clinics, research centers, and therapy strategies across key autoimmune disease sites.'],
         pendingAction: null,
         freeRoads: 0,
         tempPick: [],
@@ -785,8 +801,8 @@
       if (game.pendingAction === 'moveFlare' && game.moveFlareRequired) return moveFlare(tileId, false);
       if (game.pendingAction === 'moveFlareByCard') return moveFlare(tileId, true);
       game.infoText = tile.type === 'trigger'
-        ? `${tile.tissue}: Trigger tile. Genetics and environment can help start disease, but chronic autoimmunity reflects failed tolerance.`
-        : `${tile.tissue}: ${R[tile.type].desc} This tile activates on ${tile.number}.`;
+        ? `Trigger tile. ${siteDescription(tile)}`
+        : `${tile.tissue}: ${siteDescription(tile)} ${R[tile.type].desc} This tile activates on ${tile.number}.`;
       render();
     }
     function clickVertex(vertexId) {
@@ -831,6 +847,10 @@
     }
     function tileLabel(tile) {
       return tile.type === 'trigger' ? 'Trigger' : R[tile.type].short;
+    }
+    function siteDescription(tile) {
+      if (tile.type === 'trigger') return 'Triggers can include genetics, infection, microbiome changes, smoking, or other environmental factors. They can help start or worsen disease, but chronic autoimmunity reflects failed tolerance.';
+      return SITE_INFO[tile.tissue] || 'A representative autoimmune disease context.';
     }
 
     function validSets() {
@@ -997,12 +1017,13 @@
             <div class="header between"><div><div class="title small game-brand">How to play Tolerance</div><div class="subtitle">Fast rules first. Science notes are woven into the game log.</div></div><button class="btn" onclick="G.hideRules()">Close</button></div>
             <div class="content stack">
               <div class="card"><strong>Goal</strong><div class="tiny" style="margin-top:6px">Be the first player to reach <strong>10 victory points</strong>. Clinics = 1 VP, research centers = 2 VP, Most Prepared = 2 VP, Precision Breakthrough = 1 hidden VP.</div></div>
+              <div class="card"><strong>Board</strong><div class="tiny" style="margin-top:6px">The board focuses on disease sites where autoimmunity is commonly taught. Each site highlights a different way immune activity can harm healthy tissue.</div></div>
               <div class="two-col">
                 <div class="card"><strong>Turn</strong><div class="tiny" style="margin-top:6px">1. Roll dice.<br>2. Tiles with that number produce resources.<br>3. Build, trade, buy therapy cards, or play a therapy card.<br>4. End your turn.</div></div>
                 <div class="card"><strong>Flare</strong><div class="tiny" style="margin-top:6px">If you roll a 7, players with more than 7 cards discard half. Move the flare to any tile. That tile stops producing, and you may steal from a nearby player.</div></div>
               </div>
               <div class="card"><strong>Build costs</strong><div class="tiny" style="margin-top:6px">Pathway: 1 TC + 1 MY<br>Clinic: 1 BC + 1 TC + 1 MY + 1 TL<br>Research center: 3 CY + 2 BC<br>Therapy card: 1 CY + 1 BC + 1 TC + 1 TL</div></div>
-              <div class="card"><strong>Therapy cards</strong><div class="tiny" style="margin-top:6px">Anti-Cytokine Therapy moves the flare. B-Cell Depletion collects one resource type from opponents. Low-Dose IL-2 / Treg Boost and Tolerogenic APC Reset grant resources. T-Cell Pathway Planning builds free pathways. Precision Breakthrough gives hidden VP.</div></div>
+              <div class="card"><strong>Therapy cards</strong><div class="tiny" style="margin-top:6px">Anti-Cytokine Therapy moves the flare. B-Cell Depletion collects one resource type from opponents. Low-Dose IL-2 / Treg Boost and Tolerogenic APC Reset grant resources. T-Cell Modulation builds free pathways. Precision Breakthrough gives hidden VP.</div></div>
               <div class="card"><strong>Main lesson</strong><div class="tiny" style="margin-top:6px">Autoimmunity is not simply “too much immunity.” It is misdirected immunity. Modern treatment is moving from broad immune suppression toward targeted, tolerance-restoring immune recalibration.</div></div>
             </div>
           </div>
@@ -1015,11 +1036,11 @@
           <div class="title-card-warm">
             <div class="title-eyebrow">A strategy game about autoimmune disease</div>
             <h1 class="title-logo">Tolerance.</h1>
-            <p class="title-tagline">Build clinics, control flares, and guide a misdirected immune system back toward balance.</p>
+            <p class="title-tagline">Build clinics, control flares, and guide a misdirected immune system back toward tolerance.</p>
             <div class="title-divider"></div>
             <div class="title-blurb">
               <p><strong>Autoimmunity</strong> happens when immune cells attack healthy tissue. In this game, each player gathers immune insight from body tissues and builds a care-and-research network to restore self-tolerance.</p>
-              <p>The best parts of both prototypes are combined here: a polished board-game presentation, a clear Catan-like turn loop, visible build costs, legal placement highlights, and report-aligned therapy cards.</p>
+              <p>The board focuses on important autoimmune disease sites—joint, skin, gut, CNS, pancreas, kidney, eye, lymph node, and bone marrow—so each tile has a clear biological purpose.</p>
             </div>
             <div class="warm-grid">
               <div class="warm-card">
@@ -1060,16 +1081,16 @@
       const canSettlementNow = !isSetup() && game.rolled && !game.moveFlareRequired && game.winner === null && canAfford(p, COSTS.settlement) && validSettlementsForPlayer(p.id).length > 0;
       const canCityNow = !isSetup() && game.rolled && !game.moveFlareRequired && game.winner === null && canAfford(p, COSTS.city) && validCitiesForPlayer(p.id).length > 0;
       const canBuyTherapyNow = !isSetup() && game.rolled && !game.moveFlareRequired && game.winner === null && canAfford(p, COSTS.therapy) && game.deck.length > 0;
-      const canPlaySelected = game.selectedCardIndex !== null && !game.moveFlareRequired && game.winner === null;
+      const canPlaySelected = !isSetup() && game.rolled && !game.moveFlareRequired && game.pendingAction === null && game.selectedCardIndex !== null && game.winner === null;
       const canTradeNow = !isSetup() && game.rolled && !game.moveFlareRequired && game.winner === null;
       app.innerHTML = `
         <div class="app">
           <div class="panel">
-            <div class="header"><div class="title small game-brand">Tolerance</div><div class="subtitle">A polished Catan-style game about autoimmunity and immune balance.</div></div>
+            <div class="header"><div class="title small game-brand">Tolerance</div><div class="subtitle">A clear strategy game about autoimmunity and immune balance.</div></div>
             <div class="body stack">
               <div class="card">
                 <div class="between"><strong>Quick guide</strong><button class="btn small" onclick="G.showRules()">Rules</button></div>
-                <div class="tiny" style="margin-top:8px">Roll, collect immune insight, build clinics/research centers, use therapy cards, and reach 10 VP first.</div>
+                <div class="tiny" style="margin-top:8px">Roll, collect immune insight from focused autoimmune disease sites, build clinics/research centers, use therapy cards, and reach 10 VP first.</div>
               </div>
               <div class="card">
                 <strong>Resource legend</strong>
@@ -1111,7 +1132,7 @@
               </div>
               <div class="card">
                 <strong>Trade with bank (4:1)</strong>
-                <div class="tiny" style="margin-top:6px">Simple trading keeps the prototype easy to learn.</div>
+                <div class="tiny" style="margin-top:6px">Trade 4 of one resource for 1 of another resource.</div>
                 <div class="stack" style="margin-top:10px">
                   <div><div class="tiny" style="margin-bottom:6px">Give 4</div><div class="token-grid">${tradeButtons('give')}</div></div>
                   <div><div class="tiny" style="margin-bottom:6px">Get 1</div><div class="token-grid">${tradeButtons('get')}</div></div>
@@ -1121,14 +1142,14 @@
               `}
               <div class="card">
                 <strong>Selected tile</strong>
-                <div class="tiny" style="margin-top:8px">${selectedTile ? (selectedTile.type === 'trigger' ? `${selectedTile.tissue}: Trigger tile. No production.<span class=\"tile-teach\">Genes or environment can help start disease, but chronic autoimmunity reflects failed tolerance.</span>` : `${selectedTile.tissue}: ${R[selectedTile.type].label} tile. Activates on ${selectedTile.number}.<span class=\"tile-teach\">${R[selectedTile.type].desc}</span>`) : 'Click a tile for a quick explanation.'}</div>
+                <div class="tiny" style="margin-top:8px">${selectedTile ? (selectedTile.type === 'trigger' ? `Trigger tile. No production.<span class=\"tile-teach\">${siteDescription(selectedTile)}</span>` : `${selectedTile.tissue}: ${R[selectedTile.type].label} tile. Activates on ${selectedTile.number}.<span class=\"tile-teach\">${siteDescription(selectedTile)}</span><span class=\"tile-teach\">${R[selectedTile.type].desc}</span>`) : 'Click a tile for a quick explanation.'}</div>
               </div>
               <div>
                 <div class="between" style="margin-bottom:8px"><strong>Event log</strong><span class="tiny">Newest first</span></div>
                 <div class="log">${game.log.map(item => `<div class="log-item ${String(item).startsWith('EDU:') ? 'edu' : ''}">${String(item).replace(/^EDU:/,'')}</div>`).join('')}</div>
               </div>
             </div>
-            <div class="footer-note">Standalone browser build. You can upload this HTML file to GitHub Pages, Netlify, or Vercel for public hosting.</div>
+            <div class="footer-note">Main takeaway: autoimmune treatment aims to calm harmful self-directed inflammation while preserving useful immune protection.</div>
           </div>
         </div>
         ${game.winner !== null ? `<div class="modal-wrap"><div class="modal"><div class="header between"><div><div class="title small">${game.players[game.winner].name} wins!</div><div class="subtitle">They reached ${victoryPoints(game.players[game.winner])} victory points by stabilizing the immune landscape.</div></div><button class="btn" onclick="G.restart()">Play again</button></div><div class="content"><div class="card"><div class="tiny">Main takeaway: autoimmune treatment is not simply about turning the immune system off. The most promising therapies increasingly aim to restore healthier immune control and tolerance.</div></div></div></div></div>` : ''}

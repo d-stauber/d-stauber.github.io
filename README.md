@@ -1,15 +1,22 @@
 # Tolerance — Autoimmunity Strategy Game
 
-This folder contains a standalone browser game. Open `index.html` locally, or deploy this folder to GitHub Pages, Netlify, or Vercel.
+Open `index.html` to play.
 
-## What changed in the combined version
+## Goal
 
-- Keeps the polished parchment/title-screen feel from the uploaded Tolerance prototype.
-- Keeps the clearer setup guidance, cost chips, build panel, and legal placement highlights from the newer Tolerance.io prototype.
-- Uses report-aligned resources: Cytokine, B-Cell, T-Cell, Myeloid, and Tolerance Insight.
-- Uses report-aligned therapy cards: Anti-Cytokine Therapy, B-Cell Depletion, Low-Dose IL-2 / Treg Boost, T-Cell Pathway Planning, Tolerogenic APC Reset, and Precision Breakthrough.
-- Adds educational “Did you know” log entries during play without interrupting gameplay.
+Be the first player to reach **10 victory points** by building clinics, upgrading research centers, and using therapy cards to control autoimmune flares.
 
-## Deployment
+## Core turn flow
 
-Upload the entire folder to any static host. No backend or build step is required.
+1. Roll dice.
+2. Matching tiles produce immune insight resources.
+3. Build, trade, buy therapy cards, or play a therapy card.
+4. End your turn.
+
+## What the board represents
+
+The map focuses on autoimmune disease sites that are useful for teaching: joint, skin, gut, CNS, pancreas, kidney, eye, lymph node, and bone marrow. Each site highlights a different way immune activity can harm healthy tissue.
+
+## Main lesson
+
+Autoimmunity is not simply “too much immunity.” It is misdirected immunity. Modern therapies increasingly aim to restore immune balance and tolerance while preserving useful immune protection.
