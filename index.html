@@ -334,6 +334,23 @@ svg.board{width:100%;max-width:980px;height:auto;user-select:none;}
 @media(max-width:1200px){.layout{grid-template-columns:260px 1fr 300px;}}
 @media(max-width:960px){.layout{grid-template-columns:1fr;}.sidebar{max-height:none;}}
 
+
+/* ── PORTS ── */
+.port-ratio-badge{
+  display:inline-block;font-size:9px;font-weight:700;
+  background:var(--gold-deep);color:#faf6ec;
+  border-radius:3px;padding:1px 3px;margin-left:3px;vertical-align:middle;
+  line-height:1.2;
+}
+
+/* ── START SCREEN ADDITIONS ── */
+.start-card{width:min(540px,100%);} /* slightly wider for intro text */
+.start-tagline{font-size:15px;color:var(--ink-soft);margin-bottom:16px;line-height:1.5;font-style:italic;}
+.start-intro{font-size:13px;color:var(--ink-soft);line-height:1.65;margin-bottom:14px;}
+.start-intro p{margin:0 0 8px 0;}
+.start-intro p:last-child{margin-bottom:0;}
+
+.start-rule{border:none;border-top:1px solid var(--rule);margin:0 0 18px 0;}
 </style>
 </head>
 <body>
@@ -388,6 +405,19 @@ const SITE_INFO = {
   'Lymph Node': 'A coordination organ where immune cells meet, get activated, and exchange signals. Where tolerance is taught — or fails.',
   'Bone Marrow':'A source of immune cells. B cells are educated here, and many myeloid cells are produced here.'
 };
+
+const PORTS = {
+  '2,0,0':   { type: 'cy',  name: 'Cytokine Lab',       ratio: 2, desc: 'Trade 2 Cytokine for 1 of any resource.' },
+  '1,1,1':   { type: '3:1', name: 'Treatment Center',   ratio: 3, desc: 'Trade 3 of any resource for 1 of any other.' },
+  '-1,2,1':  { type: 'bc',  name: 'B-Cell Center',      ratio: 2, desc: 'Trade 2 B-Cell for 1 of any resource.' },
+  '-2,2,2':  { type: '3:1', name: 'Treatment Center',   ratio: 3, desc: 'Trade 3 of any resource for 1 of any other.' },
+  '-2,1,3':  { type: 'tc',  name: 'T-Cell Center',      ratio: 2, desc: 'Trade 2 T-Cell for 1 of any resource.' },
+  '-1,-1,3': { type: '3:1', name: 'Treatment Center',   ratio: 3, desc: 'Trade 3 of any resource for 1 of any other.' },
+  '0,-2,4':  { type: 'my',  name: 'Myeloid Hub',        ratio: 2, desc: 'Trade 2 Myeloid for 1 of any resource.' },
+  '1,-2,5':  { type: '3:1', name: 'Treatment Center',   ratio: 3, desc: 'Trade 3 of any resource for 1 of any other.' },
+  '2,-1,5':  { type: 'tl',  name: 'Tolerance Institute',ratio: 2, desc: 'Trade 2 Tolerance for 1 of any resource.' }
+};
+
 
 const NUMBER_TOKENS = [5,2,6,3,8,10,9,12,11,4,8,10,9,4,5,6,3,11];
 const TILE_TYPES = ['cy','cy','cy','cy','bc','bc','bc','bc','tc','tc','tc','tc','my','my','my','tl','tl','tl','trigger'];
@@ -569,7 +599,29 @@ function createBoard() {
   const vertices = Array.from(vertexMap.values()).map(v => ({ ...v, neighbors:Array.from(v.neighbors) }));
   const edges = Array.from(edgeMap.values());
   placeNumbersWithoutHotAdjacency(tiles, NUMBER_TOKENS);
-  return { tiles, vertices, edges };
+
+  /* ── Attach ports ── */
+  const ports = [];
+  tiles.forEach(tile => {
+    for (let ei = 0; ei < 6; ei++) {
+      const key = `${tile.q},${tile.r},${ei}`;
+      if (!PORTS[key]) continue;
+      const pd = PORTS[key];
+      const vA = vertices[tile.vertexIds[ei]];
+      const vB = vertices[tile.vertexIds[(ei+1)%6]];
+      // Outward push: midpoint of edge, pushed away from tile center
+      const mx = (vA.x + vB.x) / 2, my = (vA.y + vB.y) / 2;
+      const dx = mx - tile.x, dy = my - tile.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const px = Math.round(mx + dx/dist * 28);
+      const py = Math.round(my + dy/dist * 28);
+      ports.push({ type: pd.type, name: pd.name, ratio: pd.ratio, desc: pd.desc,
+                   v1: vA.id, v2: vB.id, px, py,
+                   c1x: vA.x, c1y: vA.y, c2x: vB.x, c2y: vB.y });
+    }
+  });
+
+  return { tiles, vertices, edges, ports };
 }
 
 /* ── PLAYERS + GAME STATE ── */
@@ -1072,14 +1124,33 @@ function finishFlareNoSteal() {
 }
 
 /* ── TRADE ── */
+
+/* Returns best trade ratio per resource for a player based on their clinic/research positions */
+function getPlayerPorts(playerId) {
+  const ratios = { cy:4, bc:4, tc:4, my:4, tl:4 };
+  if (!game || !game.board.ports) return ratios;
+  const p = game.players[playerId];
+  const ownedVerts = new Set([...p.clinics, ...p.research]);
+  game.board.ports.forEach(port => {
+    if (!ownedVerts.has(port.v1) && !ownedVerts.has(port.v2)) return;
+    if (port.type === '3:1') {
+      RKEYS.forEach(k => { if (3 < ratios[k]) ratios[k] = 3; });
+    } else {
+      // specific 2:1 port
+      if (2 < ratios[port.type]) ratios[port.type] = 2;
+    }
+  });
+  return ratios;
+}
 function doTrade() {
   if (isSetup() || !game.rolled || game.moveFlareRequired || game.winner !== null) return;
   const p = curPlayer();
   const { give, get } = game.trade;
-  if (give === get || p.resources[give] < 4 || game.bank[get] < 1) return;
-  p.resources[give] -= 4; game.bank[give] += 4;
+  const ratio = getPlayerPorts(p.id)[give];
+  if (give === get || p.resources[give] < ratio || game.bank[get] < 1) return;
+  p.resources[give] -= ratio; game.bank[give] += ratio;
   p.resources[get] += 1; game.bank[get] -= 1;
-  log(`${p.name} traded 4 ${R[give].short} for 1 ${R[get].short}.`);
+  log(`${p.name} traded ${ratio} ${R[give].short} for 1 ${R[get].short}.`);
   render();
 }
 function setTrade(side, key) { game.trade[side] = key; render(); }
@@ -1500,7 +1571,26 @@ function renderBoard() {
     </g>`;
   }).join('');
 
-  return `<svg class="board" viewBox="${minX} ${minY} ${width} ${height}">${tileSvg}${edgeSvg}${vertexSvg}</svg>`;
+  /* ── Port symbols ── */
+  const portSvg = (game.board.ports||[]).map(port => {
+    const isSpecific = port.type !== '3:1';
+    const col = isSpecific ? R[port.type].color : '#8b7355';
+    const label = isSpecific ? R[port.type].short : '3:1';
+    // Lines from port circle to its two dock vertices
+    const lines = `
+      <line x1="${port.px}" y1="${port.py}" x2="${port.c1x}" y2="${port.c1y}" stroke="${col}" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>
+      <line x1="${port.px}" y1="${port.py}" x2="${port.c2x}" y2="${port.c2y}" stroke="${col}" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>`;
+    // Port circle + label
+    const circle = `
+      <circle cx="${port.px}" cy="${port.py}" r="14" fill="${col}" stroke="#faf6ec" stroke-width="2" opacity="0.92"/>
+      <text x="${port.px}" y="${port.py}" text-anchor="middle" dominant-baseline="central"
+            font-size="${isSpecific?8:7}" font-weight="bold" fill="#faf6ec" font-family="sans-serif">${label}</text>
+      <text x="${port.px}" y="${port.py+10}" text-anchor="middle" dominant-baseline="central"
+            font-size="6" fill="#faf6ec" font-family="sans-serif" opacity="0.85">${port.ratio}:1</text>`;
+    return `<g class="port-symbol" title="${escAttr(port.name)}">${lines}${circle}</g>`;
+  }).join('');
+
+  return `<svg class="board" viewBox="${minX} ${minY} ${width} ${height}">${tileSvg}${portSvg}${edgeSvg}${vertexSvg}</svg>`;
 }
 
 /* ── RENDER HELPERS ── */
@@ -1748,19 +1838,37 @@ function kindLabel(k) {
 function renderTrade() {
   const p = curPlayer();
   const ready = !isSetup() && game.rolled && !game.moveFlareRequired && game.winner===null && game.pendingAction===null && !p.isAI;
+  const ratios = getPlayerPorts(p.id);
+  const giveRatio = ratios[game.trade.give] || 4;
+  const canTrade = ready && p.resources[game.trade.give] >= giveRatio && game.bank[game.trade.get] >= 1 && game.trade.give !== game.trade.get;
+
   const tradeBtn = (side) => RESOURCES.map(r => {
     const active = game.trade[side] === r.key;
+    const ratio = ratios[r.key];
+    const badge = side === 'give' && ratio < 4
+      ? `<span class="port-ratio-badge">${ratio}:1</span>` : '';
     return `<button class="btn small${active?' active':''}" onclick="G.setTrade('${side}','${r.key}')">
-      <span class="cost-chip ${r.key}">${r.short}</span>
+      <span class="cost-chip ${r.key}">${r.short}</span>${badge}
     </button>`;
   }).join('');
-  const canTrade = ready && p.resources[game.trade.give]>=4 && game.bank[game.trade.get]>=1 && game.trade.give!==game.trade.get;
+
+  // List ports this player has access to
+  const myPorts = (game.board.ports||[]).filter(port => {
+    const owned = new Set([...p.clinics, ...p.research]);
+    return owned.has(port.v1) || owned.has(port.v2);
+  });
+  const portList = myPorts.length
+    ? `<div class="tiny" style="margin-top:8px;color:var(--gold-deep)">
+        ${myPorts.map(pt => `<div>⚕ <strong>${escText(pt.name)}</strong> — ${escText(pt.desc)}</div>`).join('')}
+       </div>`
+    : `<div class="tiny" style="margin-top:8px;color:var(--ink-faint)">Build a clinic on a port (⚕) for better rates.</div>`;
+
   return `<div class="card">
-    <div class="between"><strong>Trade with bank</strong><span class="tiny">4 : 1</span></div>
-    <div class="tiny" style="margin-top:6px">Trade 4 of one type for 1 of another.</div>
-    <div style="margin-top:10px"><div class="tiny" style="margin-bottom:4px">Give 4</div><div class="row">${tradeBtn('give')}</div></div>
+    <div class="between"><strong>Trade with bank</strong><span class="tiny">${giveRatio}:1</span></div>
+    <div style="margin-top:10px"><div class="tiny" style="margin-bottom:4px">Give ${giveRatio}</div><div class="row">${tradeBtn('give')}</div></div>
     <div style="margin-top:8px"><div class="tiny" style="margin-bottom:4px">Get 1</div><div class="row">${tradeBtn('get')}</div></div>
     <button class="btn full" style="margin-top:10px" ${canTrade?'':'disabled'} onclick="G.doTrade()">Trade</button>
+    ${portList}
   </div>`;
 }
 
@@ -1771,12 +1879,24 @@ function renderTileInspect() {
   if (t.type === 'trigger') return `<div><strong>${escText(t.site)} tile</strong></div>
     <div class="tiny" style="margin-top:4px">No production. The flare starts here.</div>
     <div class="tiny" style="margin-top:8px;line-height:1.55">Triggers can include genetics, infection, microbiome shifts, smoking, or other environmental factors. They can <em>start</em> autoimmune disease, but chronic disease reflects failed tolerance afterward.</div>`;
+  // Check if this tile has a port on any of its edges
+  const tilePortInfo = (game.board.ports||[]).filter(port =>
+    [port.v1, port.v2].some(vid => t.vertexIds.includes(vid)) &&
+    // port must be on an outward edge of this tile (both vertices belong to this tile)
+    t.vertexIds.includes(port.v1) && t.vertexIds.includes(port.v2)
+  );
+  const portHtml = tilePortInfo.length
+    ? tilePortInfo.map(pt => `<div class="tiny" style="margin-top:6px;color:var(--gold-deep)">
+        ⚕ <strong>${escText(pt.name)}</strong> (${pt.ratio}:1) — ${escText(pt.desc)}
+      </div>`).join('')
+    : '';
   return `<div class="between">
     <div><strong>${escText(t.site)}</strong> <span class="tiny">· ${R[t.type].label} tile</span></div>
     <span class="pill mono-num">${t.number??'—'}</span>
   </div>
   <div class="tiny" style="margin-top:6px;line-height:1.55">${escText(SITE_INFO[t.site]||'')}</div>
-  <div class="tiny" style="margin-top:6px;line-height:1.55"><em>${escText(R[t.type].desc)}</em></div>`;
+  <div class="tiny" style="margin-top:6px;line-height:1.55"><em>${escText(R[t.type].desc)}</em></div>
+  ${portHtml}`;
 }
 
 function renderLegend() {
@@ -1928,10 +2048,23 @@ function startScreen() {
           AI
         </label>`}
     </div>`).join('');
+
   return `<div class="start-screen">
     <div class="start-card">
+
+      <!-- Title block -->
       <div class="start-title">Tolerance</div>
-      <div class="start-sub">A Strategy Game About Autoimmunity</div>
+      <div class="start-tagline">Build clinics, manage flares, and guide a misdirected immune system back toward self-tolerance.</div>
+
+      <!-- Thematic intro -->
+      <div class="start-intro">
+        <p>Autoimmunity is misdirected immunity — the immune system attacking healthy tissue because tolerance has failed. Collect immune resources from real disease sites, build clinics and research centers, and race to 10 victory points before your opponents do.</p>
+        <p>Roll to produce resources, trade with specialist ports on the board edge, play therapy cards to shift the balance, and manage flares that disrupt everyone's plans. Each card and site teaches a real piece of immunology along the way.</p>
+      </div>
+
+      <div class="start-rule"></div>
+
+      <!-- Config -->
       <div class="start-section">
         <label class="tiny">Number of players</label>
         <div class="count-row">
@@ -1949,6 +2082,7 @@ function startScreen() {
         <label class="tiny">Player names</label>
         <div id="player-rows">${playerRows}</div>
       </div>
+
       <button class="btn full primary" style="margin-top:20px" onclick="G.startGame()">Start Game</button>
       <button class="btn full ghost" style="margin-top:8px" onclick="G.showRules()">How to Play</button>
     </div>
@@ -2072,7 +2206,11 @@ render();
       </ol>
       <p><strong>Victory Points:</strong> 1 VP per clinic · 2 VP per research center · 2 VP for Strongest Pathway · 2 VP for Most Care · 1–2 VP from hidden therapy cards.</p>
       <p><strong>Therapy Cards:</strong> Anti-Cytokine moves the flare and steals a resource. Treg Boost gives 2 free resources. Plasmapheresis takes all of one resource from opponents. Costimulation Blockade gives 2 free pathways. JAK Inhibition gives 2 free pathways. Precision Breakthrough is worth 1 hidden VP.</p>
-      <p><strong>Trade:</strong> Trade 4 of any resource for 1 of any other with the bank.</p>
+      <p><strong>Trade:</strong> Trade 4 of any resource for 1 of any other with the bank. Build a clinic or research center on a <strong>port (⚕)</strong> to unlock better rates:</p>
+      <ul style="margin:4px 0 0 16px;font-size:13px;line-height:1.7">
+        <li><strong>Treatment Center</strong> — 3:1 any resource (build on any ⚕ circle on the board edge)</li>
+        <li><strong>Cytokine Lab / B-Cell Center / T-Cell Center / Myeloid Hub / Tolerance Institute</strong> — 2:1 for that specific resource</li>
+      </ul>
       <p><strong>The Flare:</strong> The flare tile produces nothing. When it moves, the player who rolled may steal 1 resource from a bordering opponent.</p>
     </div>
   </div>
