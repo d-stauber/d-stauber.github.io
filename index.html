@@ -1106,6 +1106,7 @@ function setAction(action) {
   render();
 }
 function cancelAction() {
+  if (!game) return;
   if (['plenty','monopoly','flareCard'].includes(game.pendingAction)) {
     game.pendingAction = null; game.pendingCardIdx = null; game.tempPick = [];
   } else { game.pendingAction = null; }
@@ -1319,6 +1320,11 @@ function doAIFlare() {
   /* Move flare away from own clinics, toward opponent clinics */
   const pid = game.currentPlayer;
   const tiles = game.board.tiles.filter(t => t.id !== game.flareTileId && t.type !== 'trigger');
+  if (!tiles.length) {
+    /* No valid tile to move flare — clear state and continue */
+    game.moveFlareRequired = false; game.pendingAction = null;
+    scheduleAIIfNeeded(); return;
+  }
   const scored = tiles.map(t => {
     let score = 0;
     t.vertexIds.forEach(vId => {
@@ -1329,10 +1335,8 @@ function doAIFlare() {
     });
     return { t, score };
   }).sort((a,b) => b.score - a.score);
-  const target = scored[0] ? scored[0].t : tiles[0];
-  if (target) {
-    setTimeout(() => { clickFlareTile(target.id); scheduleAIIfNeeded(); }, 600);
-  }
+  const target = scored[0].t;
+  setTimeout(() => { clickFlareTile(target.id); scheduleAIIfNeeded(); }, 600);
 }
 
 function doAISteal() {
@@ -1356,6 +1360,9 @@ function doAIPlentyPick() {
       return;
     }
   }
+  /* Bank empty for all resources — cancel and continue */
+  game.pendingAction = null; game.pendingCardIdx = null; game.tempPick = [];
+  scheduleAIIfNeeded();
 }
 
 function doAIMonopolyPick() {
@@ -1719,8 +1726,8 @@ function monopolyPanel() {
   </div>`;
 }
 
-function renderHand() {
-  const p = curPlayer();
+function renderHand(p) {
+  p = p || curPlayer();
   if (!p.hand.length) return '<div class="tiny">No therapy cards yet. Buy from the bank above.</div>';
   return `<div class="therapy-list">${p.hand.map((c,i) => {
     const fresh = p.handFresh.includes(i), sel = game.selectedCardIdx === i;
@@ -1887,8 +1894,8 @@ function render() {
       </main>
 
       <aside class="sidebar right">
-        <div class="section-label">Your Resources</div>
-        <div class="resource-row">${isSetup()||p.isAI?renderResources(p):renderResources(p)}</div>
+        <div class="section-label">${p.isAI ? game.players[0].name+"'s Resources" : "Your Resources"}</div>
+        <div class="resource-row">${renderResources(p.isAI ? game.players[0] : p)}</div>
 
         <div class="section-label" style="margin-top:12px">Actions</div>
         ${renderActionPanel()}
@@ -1896,8 +1903,8 @@ function render() {
         <div class="section-label" style="margin-top:12px">Trade</div>
         ${renderTrade()}
 
-        <div class="section-label" style="margin-top:12px">Your Therapy Cards</div>
-        ${isSetup()||p.isAI?'<div class="tiny">Available after setup.</div>':renderHand()}
+        <div class="section-label" style="margin-top:12px">${p.isAI ? game.players[0].name+"'s Therapy Cards" : "Your Therapy Cards"}</div>
+        ${isSetup()?'<div class="tiny">Available after setup.</div>':renderHand(p.isAI ? game.players[0] : p)}
 
         <div class="section-label" style="margin-top:12px">Tile Inspector</div>
         ${renderTileInspect()}
