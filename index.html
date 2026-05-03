@@ -12,7 +12,7 @@
   --paper:#f4ede1; --paper-edge:#ebe1d0; --card:#faf6ec; --card-soft:#f5efe0;
   --rule:#d8cdb5; --rule-soft:#e2d9c4;
   --ink:#1d2330; --ink-soft:#4a5466; --ink-faint:#7d8597;
-  --red:#c2453a; --red-deep:#9d352b; --teal:#2f6b6b; --teal-deep:#1f4f4f;
+  --red:#c2453a; --red-deep:#9d352b; --green:#3a7d44; --muted:#9aa0ad; --teal:#2f6b6b; --teal-deep:#1f4f4f;
   --gold:#b88a3e; --gold-deep:#8d6727; --plum:#6e3d6a;
   --cy:#b54e4a; --bc:#c5853a; --tc:#4a6fa5; --my:#7c4f9c; --tl:#4a8a5e;
   --trigger:#5b5048;
@@ -213,6 +213,7 @@ svg.board{width:100%;max-width:980px;height:auto;user-select:none;}
 .therapy:hover{border-color:var(--ink-faint);}
 .therapy.selected{border-color:var(--ink);background:var(--card-soft);box-shadow:inset 0 0 0 1px var(--ink);}
 .therapy.fresh{opacity:0.55;cursor:not-allowed;}
+.therapy.treated{border-color:var(--green);background:#f0faf0;cursor:default;}
 .therapy .title-row{display:flex;justify-content:space-between;gap:8px;align-items:center;}
 .therapy .name{font-weight:800;font-size:13px;}
 .therapy .kind{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-soft);font-weight:700;}
@@ -351,6 +352,39 @@ svg.board{width:100%;max-width:980px;height:auto;user-select:none;}
 .start-intro p:last-child{margin-bottom:0;}
 
 .start-rule{border:none;border-top:1px solid var(--rule);margin:0 0 18px 0;}
+
+/* ── DISEASE DEAL ANIMATION ── */
+.deal-overlay{position:fixed;inset:0;background:rgba(20,15,5,0.82);backdrop-filter:blur(4px);
+  z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:28px;padding:24px;}
+.deal-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:0.32em;color:rgba(255,255,255,0.55);
+  font-weight:800;}
+.deal-title{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:300;
+  font-size:clamp(28px,4vw,44px);color:#faf6ec;letter-spacing:-0.03em;text-align:center;
+  line-height:1.1;}
+.deal-players{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+.deal-player{display:flex;flex-direction:column;align-items:center;gap:10px;
+  opacity:0;transform:translateY(18px);transition:opacity 0.45s ease,transform 0.45s ease;}
+.deal-player.visible{opacity:1;transform:translateY(0);}
+.deal-player-name{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;
+  color:rgba(255,255,255,0.7);}
+.deal-cards{display:flex;gap:10px;}
+.deal-card{width:150px;background:var(--card);border:1px solid var(--rule);border-radius:6px;
+  padding:12px 10px;text-align:center;
+  opacity:0;transform:translateY(14px) scale(0.94);
+  transition:opacity 0.38s ease,transform 0.38s ease;}
+.deal-card.visible{opacity:1;transform:translateY(0) scale(1);}
+.deal-card .dc-label{font-size:9px;text-transform:uppercase;letter-spacing:0.22em;
+  color:var(--ink-faint);font-weight:800;margin-bottom:6px;}
+.deal-card .dc-name{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:400;
+  font-size:13px;color:var(--ink);line-height:1.25;}
+.deal-card .dc-desc{font-size:10px;color:var(--ink-soft);line-height:1.4;margin-top:6px;
+  text-align:left;max-width:140px;}
+.deal-card .dc-pip{width:28px;height:28px;border-radius:50%;margin:8px auto 0;
+  display:flex;align-items:center;justify-content:center;font-size:14px;}
+.deal-subtitle{font-size:14px;color:rgba(255,255,255,0.6);margin-top:4px;margin-bottom:8px;}
+.deal-continue{margin-top:8px;opacity:0;pointer-events:none;transition:opacity 0.5s ease;}
+.deal-continue.visible{opacity:1;pointer-events:auto;}
 </style>
 </head>
 <body>
@@ -368,10 +402,48 @@ const RESOURCES = [
     desc:'T cells coordinate immune responses. Regulatory T cells (Tregs) help enforce self-tolerance.' },
   { key:'my', short:'MY', label:'Myeloid',   color:'var(--my)',
     desc:'Dendritic cells and macrophages can amplify inflammation — or be retrained to teach tolerance.' },
-  { key:'tl', short:'TL', label:'Tolerance', color:'var(--tl)',
-    desc:'The immune system\'s ability to leave the body alone. The therapeutic goal of modern autoimmune medicine.' }
+  { key:'tl', short:'AR', label:'Adv. Research', color:'var(--tl)',
+    desc:'Advanced research breakthroughs — tolerogenic therapies, Treg expansion, and precision immunology that restore immune balance. The rarest and most valuable resource.' }
 ];
 const RKEYS = RESOURCES.map(r => r.key);
+
+const RESOURCE_INFO = {
+  cy: {
+    label: 'Cytokine (CY)',
+    color: '#e74c3c',
+    what: 'Cytokines are tiny chemical messengers that immune cells use to talk to each other. Think of them as alarm signals — when your body detects a threat, cytokines spread the word and recruit more immune cells to the scene.',
+    autoimmune: 'In autoimmune diseases, the alarm never turns off. Cytokines like TNF, IL-6, and IL-17 keep firing even when there is no real threat, causing the chronic inflammation that damages joints, nerves, and organs.',
+    game: 'In Tolerance, Cytokine tiles represent inflamed tissue environments. Collecting CY resources lets you draw from the Cytokine therapy deck — drugs like adalimumab (anti-TNF) and tocilizumab (anti-IL-6) that silence the alarm.'
+  },
+  bc: {
+    label: 'B Cell (BC)',
+    color: '#8e44ad',
+    what: 'B cells are white blood cells that make antibodies — proteins that normally tag foreign invaders for destruction. Each B cell is trained to recognise one specific target.',
+    autoimmune: 'In autoimmune disease, some B cells mistakenly make antibodies against the body\'s own tissues (called autoantibodies). In lupus, for example, autoantibodies attack DNA and kidneys. In rheumatoid arthritis, they attack joint tissue.',
+    game: 'B Cell tiles represent lymph nodes and immune organs. BC resources unlock therapies like rituximab (which depletes B cells) and belimumab (which cuts off their survival signal).'
+  },
+  tc: {
+    label: 'T Cell (TC)',
+    color: '#2980b9',
+    what: 'T cells are the commanders of the immune system. Some (helper T cells) direct other immune cells; some (killer T cells) destroy infected cells directly; and some (regulatory T cells, or Tregs) act as peacekeepers, telling the immune system to stand down.',
+    autoimmune: 'When Tregs fail or aggressive T cells escape quality control, they can attack healthy tissue. This is central to multiple sclerosis (T cells attack the brain\'s insulation) and type 1 diabetes (T cells destroy insulin-producing cells).',
+    game: 'T Cell tiles represent immune checkpoints and lymph tissue. TC resources unlock therapies like abatacept (which blocks T cell activation) and natalizumab (which stops T cells from entering the brain).'
+  },
+  my: {
+    label: 'Myeloid Cell (MY)',
+    color: '#27ae60',
+    what: 'Myeloid cells include macrophages and dendritic cells — the immune system\'s first responders and teachers. Macrophages engulf debris and pathogens; dendritic cells present fragments of threats to T cells to train them.',
+    autoimmune: 'In autoimmune disease, myeloid cells can get stuck in an inflammatory mode, continuously activating T cells and releasing damaging signals. They are key drivers of conditions like psoriasis and inflammatory bowel disease.',
+    game: 'Myeloid tiles represent tissue-resident immune hubs. MY resources unlock therapies like baricitinib (a JAK inhibitor that quiets myeloid signalling) and anti-GM-CSF drugs.'
+  },
+  tl: {
+    label: 'Advanced Research (AR)',
+    color: '#c0932a',
+    what: 'Advanced Research represents cutting-edge scientific breakthroughs — from precision immunology to next-generation biologics and cell therapies.',
+    autoimmune: 'The frontier of autoimmune treatment includes Treg therapies that restore immune tolerance, CAR-T cell therapies that eliminate disease-driving immune cells, and reverse vaccines that desensitise the immune system to a specific self-target without broad suppression.',
+    game: 'AR is a rare, high-value resource needed to build Research Centers and pathways. It reflects the real-world challenge of translating scientific discoveries into clinical treatments.'
+  }
+};
 const R = Object.fromEntries(RESOURCES.map(r => [r.key, r]));
 
 const RES_GLYPH = {
@@ -387,7 +459,7 @@ const TILE_FILL   = { cy:'#fadcd6', bc:'#fae0bf', tc:'#d3def0', my:'#dfd0e6', tl
 const TILE_STROKE = { cy:'#a4413e', bc:'#a87328', tc:'#3e5c8a', my:'#684086', tl:'#3d7651', trigger:'#766b5a' };
 const PLAYER_COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)'];
 const PLAYER_HEX    = ['#c2453a','#2f6b6b','#b88a3e','#6e3d6a'];
-const DEFAULT_NAMES = ['Garnet','Cedar','Ochre','Iris'];
+const DEFAULT_NAMES = ['Dr. Shen','Dr. Okafor','Dr. Reyes','Dr. Patel'];
 
 const SITES = [
   'Joint','Joint','Skin','Skin','Gut','Gut','CNS','CNS',
@@ -395,15 +467,24 @@ const SITES = [
   'Lymph Node','Lymph Node','Bone Marrow','Bone Marrow'
 ];
 const SITE_INFO = {
-  'Joint':      'A rheumatoid-arthritis-style site. Synovial joint tissue is a classic setting for cytokine, B-cell, T-cell, and myeloid-driven attack.',
-  'Skin':       'A psoriasis-style site. The IL-23/IL-17 cytokine pathway is a major driver and a key drug target.',
-  'Gut':        'An inflammatory-bowel-disease-style site. The same pathway can help in one tissue and harm another.',
-  'CNS':        'A multiple-sclerosis-style site. Immune activity in the brain and spinal cord can damage myelin and nerves.',
-  'Pancreas':   'A type-1-diabetes-style site. The immune system attacks insulin-producing beta cells in a highly specific way.',
-  'Kidney':     'A lupus-nephritis-style site. Autoantibody-immune-complex deposition damages the kidney\'s filtering tissue.',
-  'Eye':        'A uveitis-style site. Autoimmune inflammation can affect specialized, delicate tissues with serious consequences.',
-  'Lymph Node': 'A coordination organ where immune cells meet, get activated, and exchange signals. Where tolerance is taught — or fails.',
-  'Bone Marrow':'A source of immune cells. B cells are educated here, and many myeloid cells are produced here.'
+  'Joint':
+    'Rheumatoid arthritis (RA). In RA, T cells and B cells mistakenly target the synovial lining of joints, driving chronic inflammation that erodes cartilage and bone. TNF, IL-6, and IL-17 are key cytokine culprits — and blocking them with biologics like adalimumab or tocilizumab is one of modern medicine\'s clearest autoimmune success stories.',
+  'Skin':
+    'Psoriasis. Dendritic cells activate T cells that flood the skin, triggering keratinocytes to overproduce. The IL-23/IL-17 axis is the central driver — drugs targeting IL-17A (secukinumab) or IL-23 (risankizumab) can clear plaques almost completely. Psoriasis also raises cardiovascular risk, a reminder that skin disease is systemic.',
+  'Gut':
+    'Inflammatory bowel disease (IBD) — Crohn\'s disease and ulcerative colitis. The gut immune system must tolerate trillions of commensal bacteria while still fighting pathogens. When that balance breaks, chronic inflammation damages the intestinal lining. The microbiome, epithelial barrier, and mucosal T cells are all implicated, and the same cytokine pathway (IL-12/IL-23) that drives skin disease can drive gut disease too.',
+  'CNS':
+    'Multiple sclerosis (MS). Autoreactive T cells cross the blood-brain barrier and attack myelin, the insulating sheath around nerve fibres. Demyelination slows or blocks nerve signals, causing the relapsing-remitting symptoms of MS. Natalizumab blocks T cell entry into the CNS; ocrelizumab depletes B cells. The CNS was once considered immune-privileged — MS shows that privilege is conditional.',
+  'Pancreas':
+    'Type 1 diabetes (T1D). Cytotoxic T cells destroy the insulin-producing beta cells of the islets of Langerhans with remarkable specificity, leaving glucagon-secreting alpha cells intact. Once ~80% of beta cells are gone, insulin production fails. T1D is one of the best-studied examples of antigen-specific autoimmunity, and early trials of antigen-specific tolerance induction are underway.',
+  'Kidney':
+    'Lupus nephritis. In systemic lupus erythematosus (SLE), B cells produce autoantibodies against nuclear antigens (anti-dsDNA, anti-Sm). These form immune complexes that deposit in the kidney\'s glomeruli, activating complement and triggering inflammation. Lupus nephritis is a leading cause of end-stage renal disease in young women and illustrates how systemic autoimmunity can devastate a single organ.',
+  'Eye':
+    'Uveitis. Autoimmune inflammation of the uveal tract (iris, ciliary body, choroid) can cause pain, photophobia, and — if untreated — blindness. It is often associated with systemic diseases: ankylosing spondylitis, sarcoidosis, Behçet\'s disease. The eye\'s immune privilege (limited lymphatic drainage, local immunosuppression) normally protects it; uveitis represents a breakdown of that privilege.',
+  'Lymph Node':
+    'The lymph node is where tolerance is taught and where it can fail. Naïve T cells encounter antigen-presenting dendritic cells here; the outcome — activation or anergy — depends on co-stimulatory signals and the cytokine environment. Regulatory T cells (Tregs) educated in lymph nodes patrol the periphery to suppress self-reactive clones. Disrupting this education is a root cause of many autoimmune diseases.',
+  'Bone Marrow':
+    'Central tolerance begins here. Developing B cells that bind self-antigens too strongly are deleted (clonal deletion) or edited (receptor editing) before they leave the marrow. Failures of this checkpoint — due to genetics, infection, or stochastic escape — seed the periphery with autoreactive B cells. The marrow is also the source of myeloid cells (monocytes, neutrophils, dendritic cells) that amplify or resolve inflammation.'
 };
 
 const PORTS = {
@@ -415,68 +496,181 @@ const PORTS = {
   '-1,-1,3': { type: '3:1', name: 'Treatment Center',   ratio: 3, desc: 'Trade 3 of any resource for 1 of any other.' },
   '0,-2,4':  { type: 'my',  name: 'Myeloid Hub',        ratio: 2, desc: 'Trade 2 Myeloid for 1 of any resource.' },
   '1,-2,5':  { type: '3:1', name: 'Treatment Center',   ratio: 3, desc: 'Trade 3 of any resource for 1 of any other.' },
-  '2,-1,5':  { type: 'tl',  name: 'Tolerance Institute',ratio: 2, desc: 'Trade 2 Tolerance for 1 of any resource.' }
+  '2,-1,5':  { type: 'tl',  name: 'Research Institute', ratio: 2, desc: 'Trade 2 Adv. Research for 1 of any resource.' }
 };
 
 
 const NUMBER_TOKENS = [5,2,6,3,8,10,9,12,11,4,8,10,9,4,5,6,3,11];
 const TILE_TYPES = ['cy','cy','cy','cy','bc','bc','bc','bc','tc','tc','tc','tc','my','my','my','tl','tl','tl','trigger'];
-const VICTORY_TARGET = 10;
 
-const COSTS = {
-  pathway:  { tc:1, my:1 },
-  clinic:   { bc:1, tc:1, my:1, tl:1 },
-  research: { cy:3, bc:2 },
-  therapy:  { cy:1, bc:1, tl:1 }
+
+const DISEASE_CARDS = [
+  // 2 copies of each disease
+  ...Array.from({length:2}, () => ({
+    id:'ra', name:'Rheumatoid Arthritis',
+    desc:'Chronic synovial inflammation driven by autoreactive T cells and autoantibodies (RF, anti-CCP) attacking joint cartilage and bone.',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+  ...Array.from({length:2}, () => ({
+    id:'sle', name:'Systemic Lupus Erythematosus',
+    desc:'Systemic autoimmunity with immune-complex deposition, anti-dsDNA antibodies, and multi-organ involvement including kidneys and skin.',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+  ...Array.from({length:2}, () => ({
+    id:'ms', name:'Multiple Sclerosis',
+    desc:'CNS demyelination caused by autoreactive T cells and B cells crossing the blood-brain barrier and attacking myelin sheaths.',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+  ...Array.from({length:2}, () => ({
+    id:'t1d', name:'Type 1 Diabetes',
+    desc:'Autoimmune destruction of pancreatic beta cells by cytotoxic T cells and autoantibodies, leading to insulin deficiency.',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+  ...Array.from({length:2}, () => ({
+    id:'pso', name:'Psoriasis',
+    desc:'IL-17/IL-23-driven skin inflammation with keratinocyte hyperproliferation, plaques, and systemic cardiovascular risk.',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+  ...Array.from({length:2}, () => ({
+    id:'ibd', name:"Crohn's Disease / IBD",
+    desc:'Dysregulated mucosal immunity with TNF-α and IL-12/23 driving transmural gut inflammation and barrier dysfunction.',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+  ...Array.from({length:2}, () => ({
+    id:'sjo', name:"Sjögren's Syndrome",
+    desc:'Lymphocytic infiltration of exocrine glands causing dry eyes and mouth, driven by B-cell hyperactivity and IL-6 signaling.',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+  ...Array.from({length:2}, () => ({
+    id:'as', name:'Ankylosing Spondylitis',
+    desc:'HLA-B27-associated axial spondyloarthritis with TNF-α and IL-17 driving spinal inflammation and new bone formation.',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+  ...Array.from({length:2}, () => ({
+    id:'ssc', name:'Systemic Sclerosis',
+    desc:'Fibrosis and vasculopathy driven by TGF-β, IL-6, and B-cell autoantibodies (anti-Scl-70, anti-centromere).',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+  ...Array.from({length:2}, () => ({
+    id:'mg', name:'Myasthenia Gravis',
+    desc:'Neuromuscular junction failure caused by anti-AChR or anti-MuSK autoantibodies blocking acetylcholine signaling.',
+    therapyTypes:['cy','bc','tc','my']
+  })),
+];
+
+const THERAPY_DECKS = {
+  cy: [
+    { deckType:'cy', title:'Adalimumab', treats:['ra','as'],
+      mechanism:'Anti-TNF-α monoclonal antibody. Neutralises soluble and membrane-bound TNF, reducing synovial and spinal inflammation.' },
+    { deckType:'cy', title:'Tocilizumab', treats:['ra','sjo','ssc'],
+      mechanism:'Anti-IL-6 receptor antibody. Blocks IL-6 signalling, reducing acute-phase response and autoimmune-driven inflammation.' },
+    { deckType:'cy', title:'Secukinumab', treats:['pso','as'],
+      mechanism:'Anti-IL-17A antibody. Directly neutralises IL-17A, the key cytokine driving psoriatic plaques and spinal inflammation.' },
+    { deckType:'cy', title:'Ustekinumab', treats:['pso','ibd'],
+      mechanism:'Anti-IL-12/23 (p40 subunit) antibody. Blocks Th17 and Th1 differentiation upstream of IL-17 and IFN-γ production.' },
+    { deckType:'cy', title:'Infliximab', treats:['ibd','ra'],
+      mechanism:'Chimeric anti-TNF-α antibody. Neutralises TNF and induces apoptosis of TNF-expressing immune cells in gut mucosa.' },
+    { deckType:'cy', title:'Anifrolumab', treats:['sle'],
+      mechanism:'Anti-type-I interferon receptor antibody. Blocks IFN-α/β signalling, reducing the interferon signature central to lupus.' },
+    { deckType:'cy', title:'Anakinra', treats:['t1d','ra'],
+      mechanism:'IL-1 receptor antagonist. Competitively blocks IL-1α/β, reducing beta-cell inflammation and joint destruction.' },
+    { deckType:'cy', title:'Satralizumab', treats:['mg'],
+      mechanism:'Anti-IL-6 receptor antibody (recycling). Reduces autoantibody production and neuromuscular junction inflammation.' },
+    { deckType:'cy', title:'Interferon-beta', treats:['ms'],
+      mechanism:'Recombinant IFN-β shifts cytokine balance away from pro-inflammatory Th1/Th17 responses in the CNS.' },
+  ],
+  bc: [
+    { deckType:'bc', title:'Rituximab', treats:['ra','sle','sjo','ssc','ms'],
+      mechanism:'Anti-CD20 antibody depleting mature B cells. Reduces autoantibody production in RA, lupus, Sjögren\'s, systemic sclerosis, and MS.' },
+    { deckType:'bc', title:'Belimumab', treats:['sle','ssc'],
+      mechanism:'Anti-BAFF (BLyS) antibody. Reduces B-cell survival signals, lowering autoantibody titres in lupus and sclerosis.' },
+    { deckType:'bc', title:'Ocrelizumab', treats:['ms'],
+      mechanism:'Humanised anti-CD20 antibody. Depletes B cells contributing to CNS inflammation and myelin damage in MS.' },
+    { deckType:'bc', title:'Ofatumumab', treats:['ms'],
+      mechanism:'Fully human anti-CD20 antibody for subcutaneous use. Targets a distinct CD20 epitope for B-cell depletion in MS.' },
+    { deckType:'bc', title:'Efgartigimod', treats:['mg'],
+      mechanism:'FcRn antagonist that accelerates IgG degradation, rapidly reducing pathogenic anti-AChR autoantibody levels.' },
+    { deckType:'bc', title:'Ianalumab', treats:['sjo','sle'],
+      mechanism:'Anti-BAFF-R antibody. Depletes B cells via a distinct receptor, reducing autoantibody-driven glandular and systemic inflammation.' },
+    { deckType:'bc', title:'Ublituximab', treats:['ms','ra'],
+      mechanism:'Glycoengineered anti-CD20 antibody with enhanced ADCC. Rapidly depletes B cells in MS and RA with a short infusion time.' },
+  ],
+  tc: [
+    { deckType:'tc', title:'Abatacept', treats:['ra','pso','as','ssc'],
+      mechanism:'CTLA-4-Ig fusion protein. Blocks CD80/CD86 co-stimulation, preventing full T-cell activation and autoimmune attack.' },
+    { deckType:'tc', title:'Teplizumab', treats:['t1d'],
+      mechanism:'Anti-CD3 antibody. Modulates autoreactive T cells targeting beta cells, delaying T1D onset in at-risk individuals.' },
+    { deckType:'tc', title:'Fingolimod', treats:['ms'],
+      mechanism:'S1P receptor modulator. Sequesters autoreactive lymphocytes in lymph nodes, preventing CNS infiltration in MS.' },
+    { deckType:'tc', title:'Vedolizumab', treats:['ibd'],
+      mechanism:'Anti-α4β7 integrin antibody. Selectively blocks gut-homing of T cells, reducing mucosal inflammation in IBD.' },
+    { deckType:'tc', title:'Iscalimab', treats:['sjo'],
+      mechanism:'Anti-CD40L antibody. Disrupts CD40–CD40L co-stimulation between T and B cells, reducing glandular autoimmunity.' },
+    { deckType:'tc', title:'Dapirolizumab pegol', treats:['sle'],
+      mechanism:'PEGylated anti-CD40L Fab. Blocks T–B cell interaction driving autoantibody production in lupus.' },
+    { deckType:'tc', title:'Cyclosporine', treats:['pso'],
+      mechanism:'Calcineurin inhibitor. Suppresses IL-2 production and T-cell proliferation, clearing psoriatic plaques.' },
+    { deckType:'tc', title:'CAR-T Therapy', treats:['mg'],
+      mechanism:'Chimeric antigen receptor T cells engineered to target and eliminate autoreactive B cells producing anti-AChR antibodies.' },
+  ],
+  my: [
+    { deckType:'my', title:'Mavrilimumab', treats:['ra'],
+      mechanism:'Anti-GM-CSF receptor antibody. Blocks myeloid cell activation and macrophage-driven synovial inflammation in RA.' },
+    { deckType:'my', title:'Namilumab', treats:['ra','pso'],
+      mechanism:'Anti-GM-CSF antibody. Reduces myeloid-driven inflammation in joints and skin by neutralising GM-CSF signalling.' },
+    { deckType:'my', title:'Enpatoran', treats:['sle','ssc'],
+      mechanism:'TLR7/8 inhibitor. Blocks innate immune sensing of self-nucleic acids that drives myeloid activation in lupus and sclerosis.' },
+    { deckType:'my', title:'MOR103', treats:['ms'],
+      mechanism:'Anti-GM-CSF antibody. Targets myeloid cell-driven neuroinflammation and microglial activation in MS.' },
+    { deckType:'my', title:'Anti-CD40 antibody', treats:['t1d'],
+      mechanism:'Blocks CD40 on antigen-presenting cells, disrupting myeloid–T cell crosstalk that drives beta-cell destruction.' },
+    { deckType:'my', title:'Risankizumab', treats:['ibd','pso'],
+      mechanism:'Anti-IL-23 (p19 subunit) antibody. Selectively blocks IL-23, reducing myeloid-driven gut and skin inflammation without broad immune suppression.' },
+    { deckType:'my', title:'Baminercept', treats:['sjo'],
+      mechanism:'LTβR-Ig fusion protein. Blocks lymphotoxin signalling that organises myeloid-rich lymphoid aggregates in salivary glands.' },
+    { deckType:'my', title:'GM-CSF Inhibitors', treats:['as'],
+      mechanism:'Neutralise GM-CSF to reduce myeloid cell recruitment and osteoclast activation driving bone erosion in spondylitis.' },
+    { deckType:'my', title:'MDSC Therapy', treats:['mg'],
+      mechanism:'Myeloid-derived suppressor cell expansion to dampen autoreactive immune responses at the neuromuscular junction.' },
+    { deckType:'my', title:'Baricitinib', treats:['t1d'],
+      mechanism:'JAK1/2 inhibitor reducing IFN-driven beta-cell inflammation. The BANDIT trial showed preserved C-peptide in new-onset T1D.' },
+  ],
 };
 
-const THERAPY_TEMPLATE = [
-  ...Array.from({length:14}, () => ({
-    kind:'flare', title:'Anti-Cytokine Therapy',
-    effect:'Move the flare to any tile and steal one resource from a player whose clinic borders it.',
-    learn:'Stands in for therapies that block dominant inflammatory cytokines — anti-TNF (adalimumab, infliximab), anti-IL-6 (tocilizumab), anti-IL-17 (secukinumab).'
-  })),
-  ...Array.from({length:5}, () => ({
-    kind:'vp', title:'Precision Breakthrough',
-    effect:'Worth 1 hidden victory point. Counts at the moment of victory.',
-    learn:'Modern autoimmune medicine is moving toward more precise, durable, tolerance-restoring therapies — not just broad immunosuppression.'
-  })),
-  { kind:'plenty', title:'Low-Dose IL-2 / Treg Boost',
-    effect:'Take any 2 resources from the bank.',
-    learn:'Low-dose IL-2 selectively expands regulatory T cells (Tregs), which help enforce self-tolerance — an active research area for lupus and other diseases.' },
-  { kind:'plenty', title:'Tolerogenic APC Reset',
-    effect:'Take any 2 resources from the bank.',
-    learn:'Tolerogenic dendritic-cell strategies aim to retrain antigen-presenting cells to teach tolerance instead of inflammation.' },
-  { kind:'monopoly', title:'B-Cell Depletion',
-    effect:'Choose one resource type. Take all cards of that type from every opponent.',
-    learn:'Anti-CD20 antibodies like rituximab deplete B cells and can interrupt autoantibody production in lupus, MS, and other diseases.' },
-  { kind:'monopoly', title:'Plasmapheresis',
-    effect:'Choose one resource type. Take all cards of that type from every opponent.',
-    learn:'Plasma exchange physically removes antibodies and inflammatory factors from the blood. A bridging therapy in severe flares.' },
-  { kind:'roads', title:'Costimulation Blockade',
-    effect:'Build 2 free pathways immediately.',
-    learn:'Drugs like abatacept (CTLA-4-Ig) interrupt the second signal T cells need to fully activate, dampening harmful T-cell responses.' },
-  { kind:'roads', title:'JAK Inhibition',
-    effect:'Build 2 free pathways immediately.',
-    learn:'JAK inhibitors (tofacitinib, baricitinib) block intracellular signaling shared by many cytokines — a versatile but broad approach.' }
-];
+const COSTS = {
+  pathway:  { cy:1, tl:1 },
+  clinic:   { cy:1, bc:1, tc:1, my:1 },
+  research: { bc:1, tc:1, my:1, tl:2 },
+  drawCy:   { cy:3, bc:1, tc:1, my:1 },
+  drawBc:   { cy:1, bc:3, tc:1, my:1 },
+  drawTc:   { cy:1, bc:1, tc:3, my:1 },
+  drawMy:   { cy:1, bc:1, tc:1, my:3 },
+  exchange: { cy:1 }  // cost key varies by deck; computed dynamically
+};
+
+
 
 const EDU_FACTS = [
   'Autoimmunity is misdirected immunity: the immune system attacks healthy tissue because self-tolerance has failed.',
-  'Cytokines are immune messenger signals. Common drug targets include TNF, IL-6, IL-17, and the type I interferon pathway.',
-  'B cells produce autoantibodies and activate other immune cells. B-cell depletion (rituximab) helps in many autoimmune diseases.',
-  'T cells can drive disease directly, but regulatory T cells (Tregs) enforce tolerance. The challenge is to dampen the bad without losing the good.',
-  'Myeloid cells — dendritic cells, macrophages — can either amplify inflammation or teach the immune system to tolerate self-antigens.',
-  'The long-term goal isn\'t to silence the immune system. It\'s to restore immune balance and self-tolerance.',
-  'Flares are bursts of self-directed inflammation. Real autoimmune disease often waxes and wanes rather than staying constant.',
-  'JAK inhibitors block intracellular signaling shared by many cytokines — a versatile approach used in RA, psoriasis, and IBD.',
-  'Anti-TNF biologics were the first major targeted autoimmune therapy, approved in the late 1990s for rheumatoid arthritis.',
-  'Low-dose IL-2 selectively expands regulatory T cells (Tregs) — an active research area for lupus and type 1 diabetes.',
-  'The distance rule in this game mirrors the immune system\'s need for space: checkpoints must not be too close together.',
-  'Costimulation blockade (abatacept) interrupts the second signal T cells need to fully activate — a more targeted approach than steroids.',
-  'Plasmapheresis physically removes autoantibodies from the blood — a bridging therapy in severe myasthenia gravis and lupus flares.',
-  'Building pathways across disease sites mirrors integrated care: lessons in one tissue often inform treatment in another.',
-  'Most autoimmune diseases are more common in women — hormonal, genetic, and microbiome factors all play a role.'
+  'Cytokines are immune messenger signals. Common drug targets include TNF-α, IL-6, IL-17, and the type I interferon pathway.',
+  'B cells produce autoantibodies and activate other immune cells. B-cell depletion with anti-CD20 antibodies (rituximab, ocrelizumab) helps in many autoimmune diseases.',
+  'T cells are the conductors of adaptive immunity. Blocking T-cell co-stimulation (abatacept) or gut-homing (vedolizumab) can dampen autoimmune attacks.',
+  'Myeloid cells — macrophages, dendritic cells, neutrophils — amplify inflammation. GM-CSF inhibitors and TLR blockers target this arm of immunity.',
+  'Rheumatoid arthritis is driven by autoreactive T cells and anti-CCP autoantibodies attacking synovial joints. TNF and IL-6 are key therapeutic targets.',
+  'Systemic lupus erythematosus (SLE) involves immune-complex deposition and a strong type I interferon signature. Anifrolumab blocks the IFN receptor.',
+  'Multiple sclerosis is caused by autoreactive T and B cells crossing the blood-brain barrier and attacking myelin. Fingolimod sequesters lymphocytes in lymph nodes.',
+  'Type 1 diabetes results from cytotoxic T-cell destruction of insulin-producing beta cells. Teplizumab (anti-CD3) can delay onset in at-risk individuals.',
+  'Psoriasis is driven by the IL-23/IL-17 axis. Biologics targeting IL-17A (secukinumab) or IL-12/23 (ustekinumab) clear plaques effectively.',
+  "Crohn's disease involves dysregulated mucosal immunity. Infliximab (anti-TNF) and vedolizumab (anti-α4β7 integrin) reduce gut inflammation.",
+  "Sjögren's syndrome features lymphocytic infiltration of salivary and lacrimal glands. IL-6 and CD40L are emerging therapeutic targets.",
+  'Ankylosing spondylitis is HLA-B27-associated and driven by TNF-α and IL-17. Anti-TNF and anti-IL-17 biologics reduce spinal inflammation.',
+  'Systemic sclerosis (scleroderma) involves TGF-β-driven fibrosis and B-cell autoantibodies. Tocilizumab and belimumab are in clinical use.',
+  'Myasthenia gravis is caused by anti-AChR or anti-MuSK antibodies blocking neuromuscular transmission. FcRn antagonists (efgartigimod) rapidly clear pathogenic IgG.',
+  'Rituximab depletes CD20+ B cells and is used across RA, SLE, MS, and many other autoimmune diseases — one of the most versatile biologics in immunology.',
+  'Abatacept (CTLA-4-Ig) blocks the CD80/CD86 co-stimulatory signal T cells need for full activation, dampening autoimmune responses in RA and other diseases.',
+  'The budget cut mechanic mirrors real research funding: when resources are scarce, labs must prioritise — just as grant cycles force difficult choices in immunology.',
+  'Ports on the board represent specialist clinical and research facilities that can convert resources more efficiently — reflecting real-world translational medicine hubs.',
+  'Building research centers upgrades your clinics to produce more resources, mirroring how academic medical centres amplify translational research output.',
 ];
 
 /* ── HELPERS ── */
@@ -631,7 +825,7 @@ function createPlayers(count, names, aiFlags) {
     color:PLAYER_COLORS[i], colorHex:PLAYER_HEX[i],
     isAI: aiFlags[i] || false,
     resources:blankRes(), clinics:[], research:[], pathways:[],
-    hand:[], handFresh:[], hiddenVp:0, therapiesPlayed:0, hasLongest:false
+    therapyHand:[], diseases:[], treatedDiseases:[]
   }));
 }
 
@@ -643,18 +837,34 @@ function setupOrder(count) {
 function createGame(count, names, aiFlags) {
   const board = createBoard();
   const players = createPlayers(count, names, aiFlags);
+  // Deal 2 unique disease cards per player — use one copy of each disease
+  // so no two players can ever share the same disease
+  const uniqueDiseases = shuffle(
+    Object.values(
+      DISEASE_CARDS.reduce((acc, d) => { acc[d.id] = {...d}; return acc; }, {})
+    )
+  );
+  players.forEach(p => { p.diseases = [uniqueDiseases.pop(), uniqueDiseases.pop()]; });
+  // Build therapy decks (deep copy + shuffle so originals stay intact)
+  const therapyDecks = {
+    cy: shuffle([...THERAPY_DECKS.cy]),
+    bc: shuffle([...THERAPY_DECKS.bc]),
+    tc: shuffle([...THERAPY_DECKS.tc]),
+    my: shuffle([...THERAPY_DECKS.my]),
+  };
   return {
     board, players,
     currentPlayer:0, turn:1,
     dice:null, diceA:null, diceB:null, diceRolling:false, rolled:false,
     flareTileId:board.tiles.find(t => t.type === 'trigger').id,
     bank:{ cy:19, bc:19, tc:19, my:19, tl:19 },
-    deck:shuffle(THERAPY_TEMPLATE.map(c => ({...c}))),
+    therapyDecks,
     log:[], pendingAction:null, pendingCardIdx:null,
     freePathways:0, tempPick:[], stealOptions:[], stealTileId:null, stealFromCard:false,
     discardQueue:[], discardCurrent:null, moveFlareRequired:false,
-    longestOwner:null, longestLength:0, mostTherapyOwner:null, mostTherapyCount:0,
     winner:null, selectedTileId:null, selectedCardIdx:null,
+    exchangedThisTurn:false,
+    dealShownFor: new Set(), setupHandoffShownFor: new Set(),
     trade:{ give:'cy', get:'tl' },
     setup:{ order:setupOrder(count), step:0, awaitingPathFromVertex:null },
     aiThinking:false
@@ -764,61 +974,14 @@ function longestPathwayLength(pid) {
   return best;
 }
 
-function updateLongest() {
-  let bestLen = 4, bestPid = null, tie = false;
-  game.players.forEach(p => {
-    const L = longestPathwayLength(p.id);
-    if (L > bestLen) { bestLen = L; bestPid = p.id; tie = false; }
-    else if (L === bestLen && L >= 5) { tie = true; }
-  });
-  if (tie && game.longestOwner !== null) {
-    const cur = longestPathwayLength(game.longestOwner);
-    if (cur === bestLen) bestPid = game.longestOwner;
-  }
-  const prevOwner = game.longestOwner;
-  game.players.forEach(p => p.hasLongest = (p.id === bestPid));
-  game.longestOwner = bestPid;
-  game.longestLength = bestPid !== null ? bestLen : 0;
-  if (bestPid !== null && bestPid !== prevOwner) {
-    log(`${game.players[bestPid].name} now holds Strongest Pathway Network (${bestLen}).`);
-    edu('Connected pathways win because integrated care across tissues is more effective than treating organs in isolation.');
-  }
-}
+function updateLongest() { /* removed — no longer used */ }
 
-function updateMostTherapy() {
-  let best = 2, owner = null, tie = false;
-  game.players.forEach(p => {
-    if (p.therapiesPlayed > best) { best = p.therapiesPlayed; owner = p.id; tie = false; }
-    else if (p.therapiesPlayed === best && best >= 3) { tie = true; }
-  });
-  if (tie && game.mostTherapyOwner !== null) {
-    const cur = game.players[game.mostTherapyOwner].therapiesPlayed;
-    if (cur === best) owner = game.mostTherapyOwner;
-  }
-  const prev = game.mostTherapyOwner;
-  game.mostTherapyOwner = owner;
-  game.mostTherapyCount = owner !== null ? best : 0;
-  if (owner !== null && owner !== prev) {
-    log(`${game.players[owner].name} now leads Most Comprehensive Care (${best} played).`);
-    edu('Most Comprehensive Care rewards using a variety of therapies — broader strategies tend to outperform leaning on a single mechanism.');
-  }
-}
+function updateMostTherapy() { /* removed — no longer used */ }
 
-function victoryPoints(p) {
-  let vp = p.clinics.length + p.research.length*2 + p.hiddenVp;
-  if (p.hasLongest) vp += 2;
-  if (game.mostTherapyOwner === p.id) vp += 2;
-  return vp;
-}
-function publicVp(p) {
-  let vp = p.clinics.length + p.research.length*2;
-  if (p.hasLongest) vp += 2;
-  if (game.mostTherapyOwner === p.id) vp += 2;
-  return vp;
-}
 function checkWinner() {
   for (const p of game.players) {
-    if (victoryPoints(p) >= VICTORY_TARGET) { game.winner = p.id; return; }
+    const unique = [...new Set(p.treatedDiseases)];
+    if (unique.length >= 2) { game.winner = p.id; return; }
   }
 }
 
@@ -909,24 +1072,62 @@ function upgradeResearch(vId) {
 }
 
 /* ── THERAPY CARDS ── */
-function buyTherapy() {
+function drawTherapy(deckKey) {
   const p = curPlayer();
   if (isSetup() || !game.rolled || game.moveFlareRequired || game.winner !== null) return;
-  if (!canAfford(p, COSTS.therapy) || !game.deck.length) return;
-  spend(p, COSTS.therapy); addRes(game.bank, COSTS.therapy);
-  const card = game.deck.pop();
-  if (card.kind === 'vp') {
-    p.hiddenVp += 1;
-    log(`${p.name} drew a Precision Breakthrough.`);
-    edu(card.learn);
-    showEduPopup(card.learn);
-  } else {
-    p.hand.push(card);
-    p.handFresh.push(p.hand.length - 1);
-    log(`${p.name} drew ${card.title}.`);
-  }
+  // Don't allow drawing while in the middle of a build action
+  if (game.pendingAction !== null) return;
+  const costKey = 'draw' + deckKey.charAt(0).toUpperCase() + deckKey.slice(1);
+  const cost = COSTS[costKey];
+  if (!cost || !canAfford(p, cost)) return;
+  const deck = game.therapyDecks[deckKey];
+  if (!deck || !deck.length) return;
+  spend(p, cost); addRes(game.bank, cost);
+  const card = deck.pop();
+  p.therapyHand.push(card);
+  log(`${p.name} drew ${card.title} from the ${deckKey.toUpperCase()} deck.`);
+  edu(card.mechanism); showEduPopup(card.mechanism);
   checkWinner(); render();
 }
+
+function exchangeTherapy(cardIdx) {
+  const p = curPlayer();
+  if (isSetup() || !game.rolled || game.moveFlareRequired || game.winner !== null) return;
+  if (game.pendingAction !== null) return;
+  if (game.exchangedThisTurn) return;
+  const card = p.therapyHand[cardIdx];
+  if (!card) return;
+  const deckKey = card.deckType;
+  const exchangeCost = { [deckKey]: 1 };
+  if (!canAfford(p, exchangeCost)) return;
+  spend(p, exchangeCost); addRes(game.bank, exchangeCost);
+  p.therapyHand.splice(cardIdx, 1);
+  game.therapyDecks[deckKey].unshift(card); // return to bottom
+  game.exchangedThisTurn = true;
+  game.selectedCardIdx = null;
+  log(`${p.name} exchanged ${card.title} back to the ${deckKey.toUpperCase()} deck.`);
+  render();
+}
+
+function treatDisease(diseaseIdx) {
+  const p = curPlayer();
+  if (isSetup() || !game.rolled || game.moveFlareRequired || game.winner !== null) return;
+  const disease = p.diseases[diseaseIdx];
+  if (!disease || p.treatedDiseases.includes(disease.id)) return;
+  // Find a therapy card in hand that treats this disease
+  const cardIdx = p.therapyHand.findIndex(c => c.treats.includes(disease.id));
+  if (cardIdx === -1) return;
+  const card = p.therapyHand.splice(cardIdx, 1)[0];
+  p.treatedDiseases.push(disease.id);
+  game.pendingAction = null; // clear any pending build action
+  game.selectedCardIdx = null;
+  log(`${p.name} treated ${disease.name} with ${card.title}!`);
+  edu(`${card.title}: ${card.mechanism}`);
+  showEduPopup(`${card.title}: ${card.mechanism}`);
+  checkWinner(); render();
+}
+
+function buyTherapy() { /* legacy stub — use drawTherapy(deckKey) */ }
 
 function selectCard(idx) {
   if (idx === game.selectedCardIdx) game.selectedCardIdx = null;
@@ -934,82 +1135,13 @@ function selectCard(idx) {
   render();
 }
 
-function playSelectedCard() {
-  const p = curPlayer();
-  const idx = game.selectedCardIdx;
-  if (idx === null || idx === undefined) return;
-  if (p.handFresh.includes(idx)) return;
-  const card = p.hand[idx];
-  if (!card) return;
-  if (card.kind === 'flare') {
-    game.pendingAction = 'flareCard'; game.pendingCardIdx = idx;
-    edu(card.learn); showEduPopup(card.learn);
-  } else if (card.kind === 'plenty') {
-    game.pendingAction = 'plenty'; game.pendingCardIdx = idx; game.tempPick = [];
-    edu(card.learn); showEduPopup(card.learn);
-  } else if (card.kind === 'monopoly') {
-    game.pendingAction = 'monopoly'; game.pendingCardIdx = idx;
-    edu(card.learn); showEduPopup(card.learn);
-  } else if (card.kind === 'roads') {
-    p.hand.splice(idx, 1);
-    p.handFresh = p.handFresh.filter(i => i !== idx).map(i => i > idx ? i-1 : i);
-    p.therapiesPlayed += 1;
-    game.freePathways = 2; game.pendingAction = 'pathway'; game.selectedCardIdx = null;
-    log(`${p.name} played ${card.title} — 2 free Pathways.`);
-    edu(card.learn); showEduPopup(card.learn);
-    updateMostTherapy();
-  } else if (card.kind === 'vp') {
-    p.hand.splice(idx, 1);
-    p.handFresh = p.handFresh.filter(i => i !== idx).map(i => i > idx ? i-1 : i);
-    p.therapiesPlayed += 1;
-    p.hiddenVp = (p.hiddenVp || 0) + 1;
-    game.selectedCardIdx = null;
-    log(`${p.name} played ${card.title} — +1 hidden VP.`);
-    edu(card.learn); showEduPopup(card.learn);
-    updateMostTherapy();
-    checkWinner();
-  }
-  render();
-}
+function playSelectedCard() { /* removed — use treatDisease(diseaseIdx) */ }
 
-function resolvePlentyPick(rk) {
-  if (game.pendingAction !== 'plenty') return;
-  if (game.bank[rk] <= 0) return;
-  const p = curPlayer();
-  p.resources[rk] += 1; game.bank[rk] -= 1;
-  game.tempPick.push(rk);
-  if (game.tempPick.length >= 2) {
-    const idx = game.pendingCardIdx;
-    const card = p.hand[idx];
-    p.hand.splice(idx, 1);
-    p.handFresh = p.handFresh.filter(i => i !== idx).map(i => i > idx ? i-1 : i);
-    p.therapiesPlayed += 1;
-    log(`${p.name} played ${card.title} — took ${R[game.tempPick[0]].short}, ${R[game.tempPick[1]].short}.`);
-    game.tempPick = []; game.pendingAction = null; game.pendingCardIdx = null; game.selectedCardIdx = null;
-    updateMostTherapy(); checkWinner();
-  }
-  render();
-}
+function resolvePlentyPick() { /* removed — old card system */ }
 
-function resolveMonopolyPick(rk) {
-  if (game.pendingAction !== 'monopoly') return;
-  const p = curPlayer();
-  const idx = game.pendingCardIdx;
-  const card = p.hand[idx];
-  let gained = 0;
-  game.players.forEach(o => {
-    if (o.id === p.id) return;
-    gained += o.resources[rk]; p.resources[rk] += o.resources[rk]; o.resources[rk] = 0;
-  });
-  p.hand.splice(idx, 1);
-  p.handFresh = p.handFresh.filter(i => i !== idx).map(i => i > idx ? i-1 : i);
-  p.therapiesPlayed += 1;
-  game.pendingAction = null; game.pendingCardIdx = null; game.selectedCardIdx = null;
-  log(`${p.name} played ${card.title} — collected ${gained} ${R[rk].short}.`);
-  updateMostTherapy(); checkWinner(); render();
-}
+function resolveMonopolyPick() { /* removed — old card system */ }
 
-/* ── DICE + FLARE ── */
+/* ── DICE + BUDGET CUT ── */
 function rollDice() {
   if (isSetup() || game.rolled || game.winner !== null) return;
   const a = 1 + Math.floor(Math.random()*6);
@@ -1019,10 +1151,10 @@ function rollDice() {
   log(`${curPlayer().name} rolled ${a} + ${b} = ${a+b}.`);
   setTimeout(() => { if (!game) return; game.diceRolling = false; render(); }, 600);
   if (game.dice === 7) {
-    game.discardQueue = game.players.filter(p => sumRes(p.resources) > 7).map(p => p.id);
+    game.discardQueue = game.players.filter(p => sumRes(p.resources) > 9).map(p => p.id);
     if (game.discardQueue.length) startNextDiscard();
     else { game.moveFlareRequired = true; game.pendingAction = 'flareRoll'; }
-    edu('Flares are bursts of self-directed inflammation. Real autoimmune disease often waxes and wanes rather than staying constant.');
+    edu('Budget cuts are a real threat to biomedical research. Funding loss forces labs to pause studies, lay off staff, and abandon promising lines of inquiry — sometimes permanently.');
   } else {
     produceResources(game.dice);
   }
@@ -1057,8 +1189,8 @@ function confirmDiscard() {
   if (totalPicked !== dc.owe) return;
   const p = game.players[dc.playerId];
   RKEYS.forEach(k => { p.resources[k] -= dc.picks[k]||0; game.bank[k] += dc.picks[k]||0; });
-  log(`${p.name} discarded ${dc.owe} resources during the flare.`);
-  edu('During a major flare, resources are consumed quickly. In real life, severe disease activity drains immune capacity.');
+  log(`${p.name} lost ${dc.owe} resources to the budget cut.`);
+  edu('When research funding is cut, labs must return unused resources — reagents, staff time, data — and scale back operations. The science doesn\'t pause; it just falls behind.');
   game.discardQueue.shift();
   startNextDiscard();
   render();
@@ -1085,7 +1217,7 @@ function clickFlareTile(tileId) {
   if (tileId === game.flareTileId) return;
   const fromCard = (game.pendingAction === 'flareCard');
   game.flareTileId = tileId;
-  log(`${curPlayer().name} moved the Flare to the ${game.board.tiles[tileId].site} tile.`);
+  log(`${curPlayer().name} cut funding to the ${game.board.tiles[tileId].site} tile.`);
   const cands = new Set();
   game.board.tiles[tileId].vertexIds.forEach(vId => {
     const occ = vertexAt(vId).occupant;
@@ -1107,17 +1239,6 @@ function doSteal(targetId) {
   finishFlareNoSteal();
 }
 function finishFlareNoSteal() {
-  if (game.stealFromCard) {
-    const p = curPlayer(), idx = game.pendingCardIdx;
-    const card = p.hand[idx];
-    if (card) {
-      p.hand.splice(idx, 1);
-      p.handFresh = p.handFresh.filter(i => i !== idx).map(i => i > idx ? i-1 : i);
-      p.therapiesPlayed += 1;
-      log(`${p.name} played ${card.title}.`);
-      updateMostTherapy();
-    }
-  }
   game.pendingAction = null; game.pendingCardIdx = null; game.selectedCardIdx = null;
   game.stealOptions = []; game.stealFromCard = false;
   checkWinner();
@@ -1162,12 +1283,20 @@ function endTurn() {
   game.pendingAction = null; game.pendingCardIdx = null; game.selectedCardIdx = null;
   game.tempPick = []; game.freePathways = 0; game.rolled = false;
   game.diceA = null; game.diceB = null; game.dice = null;
-  game.players[game.currentPlayer].handFresh = [];
+  game.exchangedThisTurn = false;
+  game.selectedCardIdx = null;
   game.currentPlayer = (game.currentPlayer+1) % game.players.length;
   if (game.currentPlayer === 0) game.turn += 1;
   log(`Turn ${game.turn} · ${curPlayer().name}'s turn begins.`);
-  render();
-  scheduleAIIfNeeded();
+  // Show handoff screen between human players in multiplayer
+  const nextP = curPlayer();
+  const humanCount = game.players.filter(pl => !pl.isAI).length;
+  if (!nextP.isAI && humanCount > 1) {
+    showTurnHandoff(nextP, () => { render(); scheduleAIIfNeeded(); });
+  } else {
+    render();
+    scheduleAIIfNeeded();
+  }
 }
 
 function setAction(action) {
@@ -1178,9 +1307,7 @@ function setAction(action) {
 }
 function cancelAction() {
   if (!game) return;
-  if (['plenty','monopoly','flareCard'].includes(game.pendingAction)) {
-    game.pendingAction = null; game.pendingCardIdx = null; game.tempPick = [];
-  } else { game.pendingAction = null; }
+  game.pendingAction = null; game.pendingCardIdx = null; game.selectedCardIdx = null;
   render();
 }
 function clickTile(tileId) {
@@ -1218,12 +1345,10 @@ function doAIAction() {
 
   /* Handle pending states first */
   if (game.pendingAction === 'discard') { doAIDiscard(); return; }
-  if (game.pendingAction === 'flareRoll' || game.pendingAction === 'flareCard' || game.moveFlareRequired) { doAIFlare(); return; }
+  if (game.pendingAction === 'flareRoll' || game.moveFlareRequired) { doAIFlare(); return; }
   if (game.pendingAction === 'steal') { doAISteal(); return; }
-  if (game.pendingAction === 'plenty') { doAIPlentyPick(); return; }
-  if (game.pendingAction === 'monopoly') { doAIMonopolyPick(); return; }
 
-  /* Handle free pathways from roads card (pendingAction='pathway', freePathways>0) */
+  /* Handle free pathways */
   if (game.pendingAction === 'pathway' && game.freePathways > 0) {
     const edges = validPathEdges(p.id);
     if (edges.length > 0) {
@@ -1238,44 +1363,68 @@ function doAIAction() {
       }).sort((a,b) => b.score - a.score);
       buildPathway(scored[0].eId, true);
     } else {
-      // No valid edges — clear the pending action and continue
       game.pendingAction = null; game.freePathways = 0;
     }
     setTimeout(() => scheduleAIIfNeeded(), 600);
     return;
   }
 
-  /* Normal turn */
+  /* Roll dice */
   if (!game.rolled) {
     rollDice();
-    // Re-schedule to handle post-roll actions (discard, flare, or normal build)
     setTimeout(() => scheduleAIIfNeeded(), 1000);
     return;
   }
 
-  /* Try to build something useful */
+  /* Try to treat a disease if possible */
+  const untreated = (p.diseases || []).filter(d => !(p.treatedDiseases || []).includes(d.id));
+  for (const disease of untreated) {
+    const cardIdx = (p.therapyHand || []).findIndex(c => c.treats.includes(disease.id));
+    if (cardIdx >= 0) {
+      const diseaseIdx = p.diseases.indexOf(disease);
+      treatDisease(diseaseIdx);
+      setTimeout(() => scheduleAIIfNeeded(), 600);
+      return;
+    }
+  }
+
+  /* Try to draw a therapy card for an untreated disease (priority over building) */
+  const deckOrder = ['cy','bc','tc','my'];
+  // Prioritise decks that could treat an untreated disease
+  const neededDecks = untreated.length > 0
+    ? deckOrder.filter(dk => untreated.some(d => d.therapyTypes.includes(dk)))
+    : deckOrder;
+  const drawOrder = [...neededDecks, ...deckOrder.filter(dk => !neededDecks.includes(dk))];
+
+  for (const dk of drawOrder) {
+    const costKey = 'draw' + dk.charAt(0).toUpperCase() + dk.slice(1);
+    const cost = COSTS[costKey];
+    if (canAfford(p, cost) && game.therapyDecks[dk].length > 0) {
+      drawTherapy(dk);
+      setTimeout(() => scheduleAIIfNeeded(), 500);
+      return;
+    }
+  }
+
+  /* Try to build something useful (only if can't draw) */
   const built = aiTryBuild(p);
   if (built) {
-    // Re-schedule so AI can build again or end turn
     setTimeout(() => scheduleAIIfNeeded(), 600);
     return;
   }
-  /* Try to buy a therapy card */
-  if (canAfford(p, COSTS.therapy) && game.deck.length > 0) {
-    buyTherapy();
-    // Re-schedule so AI can continue its turn after buying
-    setTimeout(() => scheduleAIIfNeeded(), 500);
-    return;
+
+  /* Exchange a card that doesn't help any untreated disease */
+  if (!game.exchangedThisTurn && untreated.length > 0) {
+    const uselessIdx = (p.therapyHand || []).findIndex(c =>
+      !untreated.some(d => c.treats.includes(d.id)) && canAfford(p, {[c.deckType]:1})
+    );
+    if (uselessIdx >= 0) {
+      exchangeTherapy(uselessIdx);
+      setTimeout(() => scheduleAIIfNeeded(), 500);
+      return;
+    }
   }
-  /* Try to play a card */
-  const playable = p.hand.findIndex((c, i) => !p.handFresh.includes(i));
-  if (playable >= 0) {
-    game.selectedCardIdx = playable;
-    playSelectedCard();
-    // Re-schedule to handle any pending action from the card
-    setTimeout(() => scheduleAIIfNeeded(), 700);
-    return;
-  }
+
   /* End turn */
   endTurn();
 }
@@ -1375,7 +1524,7 @@ function doAIDiscard() {
   const p = game.players[dc.playerId];
   // Only auto-discard for AI players; humans use the UI
   if (!p.isAI) return;
-  /* Discard least useful resources first (tl > my > tc > bc > cy) */
+  /* Discard least useful resources first (ar > my > tc > bc > cy) */
   const priority = ['tl','my','tc','bc','cy'];
   let remaining = dc.owe;
   for (const rk of priority) {
@@ -1388,7 +1537,7 @@ function doAIDiscard() {
 }
 
 function doAIFlare() {
-  /* Move flare away from own clinics, toward opponent clinics */
+  /* Move budget cut away from own clinics, toward opponent clinics */
   const pid = game.currentPlayer;
   const tiles = game.board.tiles.filter(t => t.id !== game.flareTileId && t.type !== 'trigger');
   if (!tiles.length) {
@@ -1419,31 +1568,9 @@ function doAISteal() {
   setTimeout(() => { doSteal(best.pid); render(); scheduleAIIfNeeded(); }, 600);
 }
 
-function doAIPlentyPick() {
-  /* Pick most needed resources */
-  const p = curPlayer();
-  const needed = RKEYS.slice().sort((a,b) => (p.resources[a]||0) - (p.resources[b]||0));
-  for (const rk of needed) {
-    if (game.bank[rk] > 0 && game.tempPick.length < 2) {
-      resolvePlentyPick(rk);
-      if (game.pendingAction === 'plenty') setTimeout(() => doAIPlentyPick(), 300);
-      else scheduleAIIfNeeded();
-      return;
-    }
-  }
-  /* Bank empty for all resources — cancel and continue */
-  game.pendingAction = null; game.pendingCardIdx = null; game.tempPick = [];
-  scheduleAIIfNeeded();
-}
+function doAIPlentyPick() { /* removed */ }
 
-function doAIMonopolyPick() {
-  /* Pick resource type opponents have most of */
-  const pid = game.currentPlayer;
-  const totals = Object.fromEntries(RKEYS.map(k => [k, 0]));
-  game.players.forEach(p => { if (p.id !== pid) RKEYS.forEach(k => { totals[k] += p.resources[k]||0; }); });
-  const best = RKEYS.reduce((b, k) => totals[k] > totals[b] ? k : b, RKEYS[0]);
-  setTimeout(() => { resolveMonopolyPick(best); scheduleAIIfNeeded(); }, 600);
-}
+function doAIMonopolyPick() { /* removed */ }
 
 /* ── VALID SETS ── */
 function validSets() {
@@ -1495,7 +1622,7 @@ function renderBoard() {
     const strokeW = targetable ? 3 : (selected ? 3 : 1.5);
 
     const numToken = tile.number !== null ? `
-      <g class="num-token" transform="translate(${tile.x},${tile.y+18})">
+      <g class="num-token" transform="translate(${tile.x},${tile.y+22})">
         <circle r="14" fill="#faf6ec" stroke="#766b5a" stroke-width="0.8"></circle>
         <text y="5" text-anchor="middle" font-size="14" font-weight="800"
               fill="${(tile.number===6||tile.number===8)?'#c2453a':'#1d2330'}"
@@ -1506,22 +1633,20 @@ function renderBoard() {
     const flareMark = isFlare ? `
       <g transform="translate(${tile.x+26},${tile.y-26})">
         <circle r="13" fill="#c2453a" stroke="#9d352b" stroke-width="1.5"></circle>
-        <text y="5" text-anchor="middle" font-size="14" font-weight="900" fill="#faf6ec"
-              font-family="'Inter Tight',sans-serif">!</text>
+        <text y="1" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="900" fill="#faf6ec"
+              font-family="'Inter Tight',sans-serif">$</text>
       </g>` : '';
 
     const glyph = `<g transform="translate(${tile.x},${tile.y-18})" opacity="0.85">${RES_GLYPH[tile.type]||''}</g>`;
-    const siteLbl = `<text x="${tile.x}" y="${tile.y-32}" text-anchor="middle" font-size="9" font-weight="800"
-      fill="#1d2330" letter-spacing="0.06em" font-family="'Inter Tight',sans-serif">${tile.site.toUpperCase()}</text>`;
     const resLbl = tile.type === 'trigger'
-      ? `<text x="${tile.x}" y="${tile.y}" text-anchor="middle" font-size="9" fill="#5b5048"
+      ? `<text x="${tile.x}" y="${tile.y+2}" text-anchor="middle" font-size="9" fill="#5b5048"
            font-style="italic" font-family="'Fraunces',serif">no production</text>`
-      : `<text x="${tile.x}" y="${tile.y+4}" text-anchor="middle" font-size="9" fill="#1d2330"
-           font-weight="700" letter-spacing="0.08em" font-family="'Inter Tight',sans-serif">${tile.type.toUpperCase()}</text>`;
+      : `<text x="${tile.x}" y="${tile.y+2}" text-anchor="middle" font-size="9" fill="#1d2330"
+           font-weight="700" letter-spacing="0.08em" font-family="'Inter Tight',sans-serif">${(R[tile.type]||{short:tile.type.toUpperCase()}).short}</text>`;
 
     return `<g class="hex${selected?' selected':''}${isFlare?' flare':''}" onclick="G.clickTile(${tile.id})">
       <polygon points="${points}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeW}"></polygon>
-      ${siteLbl}${glyph}${resLbl}${numToken}${flareMark}
+      ${glyph}${resLbl}${numToken}${flareMark}
     </g>`;
   }).join('');
 
@@ -1572,22 +1697,21 @@ function renderBoard() {
   }).join('');
 
   /* ── Port symbols ── */
-  const portSvg = (game.board.ports||[]).map(port => {
+  const portSvg = (game.board.ports||[]).map((port, pi) => {
     const isSpecific = port.type !== '3:1';
     const col = isSpecific ? R[port.type].color : '#8b7355';
-    const label = isSpecific ? R[port.type].short : '3:1';
-    // Lines from port circle to its two dock vertices
+    const ratioLabel = port.ratio + ':1';
+    // Connector lines from port to its two dock vertices
     const lines = `
-      <line x1="${port.px}" y1="${port.py}" x2="${port.c1x}" y2="${port.c1y}" stroke="${col}" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>
-      <line x1="${port.px}" y1="${port.py}" x2="${port.c2x}" y2="${port.c2y}" stroke="${col}" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>`;
-    // Port circle + label
+      <line x1="${port.px}" y1="${port.py}" x2="${port.c1x}" y2="${port.c1y}" stroke="${col}" stroke-width="2" stroke-dasharray="4,3" opacity="0.55"/>
+      <line x1="${port.px}" y1="${port.py}" x2="${port.c2x}" y2="${port.c2y}" stroke="${col}" stroke-width="2" stroke-dasharray="4,3" opacity="0.55"/>`;
+    // Port badge: clean circle with just the ratio label, clickable
     const circle = `
-      <circle cx="${port.px}" cy="${port.py}" r="14" fill="${col}" stroke="#faf6ec" stroke-width="2" opacity="0.92"/>
+      <circle cx="${port.px}" cy="${port.py}" r="17" fill="${col}" stroke="#faf6ec" stroke-width="2.5" opacity="0.95" style="cursor:pointer"/>
       <text x="${port.px}" y="${port.py}" text-anchor="middle" dominant-baseline="central"
-            font-size="${isSpecific?8:7}" font-weight="bold" fill="#faf6ec" font-family="sans-serif">${label}</text>
-      <text x="${port.px}" y="${port.py+10}" text-anchor="middle" dominant-baseline="central"
-            font-size="6" fill="#faf6ec" font-family="sans-serif" opacity="0.85">${port.ratio}:1</text>`;
-    return `<g class="port-symbol" title="${escAttr(port.name)}">${lines}${circle}</g>`;
+            font-size="9" font-weight="800" fill="#fff" font-family="sans-serif"
+            style="cursor:pointer;pointer-events:none">${ratioLabel}</text>`;
+    return `<g class="port-symbol" onclick="G.showPortInfo(${pi})" style="cursor:pointer">${lines}${circle}</g>`;
   }).join('');
 
   return `<svg class="board" viewBox="${minX} ${minY} ${width} ${height}">${tileSvg}${portSvg}${edgeSvg}${vertexSvg}</svg>`;
@@ -1597,7 +1721,8 @@ function renderBoard() {
 function renderResources(p) {
   return RESOURCES.map(r => {
     const c = p.resources[r.key] || 0;
-    return `<div class="res-tile ${r.key}" title="${escAttr(r.label+' — '+r.desc)}">
+    return `<div class="res-tile ${r.key}" title="${escAttr(r.label)}"
+      onclick="G.showResourceInfo('${r.key}')" style="cursor:pointer">
       <svg class="glyph" viewBox="-12 -12 24 24" aria-hidden="true">${RES_GLYPH[r.key]}</svg>
       <div class="count mono-num">${c}</div>
       <div class="label">${r.short}</div>
@@ -1608,11 +1733,11 @@ function renderResources(p) {
 function renderPlayerCards() {
   return game.players.map((p, i) => {
     const isAct = (isSetup() && i === game.setup.order[game.setup.step]) || (!isSetup() && i === game.currentPlayer);
-    const vp = publicVp(p);
-    const longestBadge = p.hasLongest ? '<span class="badge">Strongest Pathway</span>' : '';
-    const careBadge = (game.mostTherapyOwner === p.id) ? '<span class="badge teal">Most Care</span>' : '';
+    const treated = (p.treatedDiseases || []).length;
+    const total = (p.diseases || []).length;
     const aiBadge = p.isAI ? '<span class="badge ai">AI</span>' : '';
     const aiThinkingBadge = (p.isAI && game.aiThinking && isAct) ? '<span class="ai-thinking">thinking…</span>' : '';
+
     return `<div class="player-card${isAct?' active':''}">
       <div class="between">
         <div class="row">
@@ -1620,7 +1745,7 @@ function renderPlayerCards() {
           <span class="name">${escText(p.name)}</span>
           ${aiBadge}
         </div>
-        <span class="pill mono-num">${vp} VP</span>
+        <span class="pill mono-num">${treated}/${total} cured</span>
       </div>
       <div class="player-stats">
         <div class="stat"><div class="v mono-num">${p.clinics.length}</div><div class="k">Clinic</div></div>
@@ -1628,8 +1753,8 @@ function renderPlayerCards() {
         <div class="stat"><div class="v mono-num">${p.pathways.length}</div><div class="k">Path</div></div>
         <div class="stat"><div class="v mono-num">${sumRes(p.resources)}</div><div class="k">Cards</div></div>
       </div>
-      <div class="tiny" style="margin-top:6px">${p.hand.length} therapy ${p.hand.length===1?'card':'cards'} · ${p.therapiesPlayed} played</div>
-      ${(longestBadge||careBadge||aiThinkingBadge)?`<div style="margin-top:6px">${longestBadge}${careBadge}${aiThinkingBadge}</div>`:''}
+      <div class="tiny" style="margin-top:6px">${(p.therapyHand||[]).length} therapy card${(p.therapyHand||[]).length===1?'':'s'}</div>
+      ${aiThinkingBadge?`<div style="margin-top:6px">${aiThinkingBadge}</div>`:''}
     </div>`;
   }).join('');
 }
@@ -1642,22 +1767,15 @@ function costChips(cost) {
 function renderActionPanel() {
   const p = curPlayer();
   if (isSetup()) return setupPanel();
-  if (game.moveFlareRequired || game.pendingAction === 'flareRoll' || game.pendingAction === 'flareCard') return flarePanel();
+  if (game.moveFlareRequired || game.pendingAction === 'flareRoll') return flarePanel();
   if (game.pendingAction === 'discard') return discardPanel();
   if (game.pendingAction === 'steal')   return stealPanel();
-  if (game.pendingAction === 'plenty')  return plentyPanel();
-  if (game.pendingAction === 'monopoly') return monopolyPanel();
   if (p.isAI) return aiPanel(p);
 
   const ready = game.rolled && !game.moveFlareRequired && game.winner === null;
-  const sel = game.selectedCardIdx;
-  const selCard = (sel !== null && sel !== undefined) ? p.hand[sel] : null;
-  const selFresh = sel !== null && p.handFresh.includes(sel);
   const canPath   = ready && (canAfford(p, COSTS.pathway)||game.freePathways>0) && validPathEdges(p.id).length>0;
   const canClinic = ready && canAfford(p, COSTS.clinic) && validClinicVerts(p.id).length>0;
   const canResrc  = ready && canAfford(p, COSTS.research) && validResearchVerts(p.id).length>0;
-  const canBuy    = ready && canAfford(p, COSTS.therapy) && game.deck.length>0;
-  const canPlay   = ready && selCard && !selFresh && game.pendingAction === null;
   const free = game.freePathways > 0;
 
   const action = (key, label, cost, ok, helper, tone='') => {
@@ -1675,23 +1793,43 @@ function renderActionPanel() {
     : missingText(p, COSTS.pathway) || 'No legal placement.';
   const clinicHelp = canClinic ? 'Click a glowing intersection.'
     : !game.rolled ? 'Roll first.'
-    : missingText(p, COSTS.clinic) || 'No legal placement (clinics can\'t touch each other and must connect to your pathway).';
+    : missingText(p, COSTS.clinic) || 'No legal placement.';
   const resrcHelp = canResrc ? 'Click one of your clinics to upgrade it.'
     : !game.rolled ? 'Roll first.'
     : missingText(p, COSTS.research) || 'No clinic to upgrade.';
+
+  // Therapy deck draw buttons
+  const deckDefs = [
+    { key:'cy', label:'Cytokine Deck', color:'#e74c3c' },
+    { key:'bc', label:'B Cell Deck',   color:'#8e44ad' },
+    { key:'tc', label:'T Cell Deck',   color:'#2980b9' },
+    { key:'my', label:'Myeloid Deck',  color:'#27ae60' },
+  ];
+  const deckButtons = deckDefs.map(({key, label, color}) => {
+    const costKey = 'draw' + key.charAt(0).toUpperCase() + key.slice(1);
+    const cost = COSTS[costKey];
+    const deck = game.therapyDecks[key];
+    const ok = ready && canAfford(p, cost) && deck.length > 0 && game.pendingAction === null;
+    const remaining = deck ? deck.length : 0;
+    const help = ok ? `Draw 1 of ${remaining} remaining.`
+      : !game.rolled ? 'Roll first.'
+      : game.pendingAction !== null ? 'Finish or cancel your current action first.'
+      : remaining === 0 ? 'Deck is empty.'
+      : missingText(p, cost) || 'Cannot afford.';
+    return `<div class="card" style="padding:10px 12px;border-left:3px solid ${color}">
+      <button class="btn full" style="background:${color};color:#fff;opacity:${ok?1:0.5}" ${ok?'':'disabled'} onclick="G.drawTherapy('${key}')">${label} <span style="font-size:11px">(${remaining})</span></button>
+      <div class="cost-row" style="margin-top:8px">${costChips(cost)}</div>
+      <div class="tiny" style="margin-top:6px">${help}</div>
+    </div>`;
+  }).join('');
 
   return `<div class="stack">
     ${action('pathway', free?'Place free Pathway':'Build Pathway', free?null:COSTS.pathway, canPath, pathHelp)}
     ${action('clinic', 'Build Clinic', COSTS.clinic, canClinic, clinicHelp)}
     ${action('research', 'Upgrade to Research Center', COSTS.research, canResrc, resrcHelp, 'go')}
     <div class="card" style="padding:10px 12px">
-      <button class="btn full gold" ${canBuy?'':'disabled'} onclick="G.buyTherapy()">Buy Therapy Card</button>
-      <div class="cost-row" style="margin-top:8px">${costChips(COSTS.therapy)}</div>
-      <div class="tiny" style="margin-top:6px">${canBuy?`Draw 1 of ${game.deck.length} remaining.`:!game.rolled?'Roll first.':missingText(p,COSTS.therapy)||'Therapy deck is empty.'}</div>
-    </div>
-    <div class="card" style="padding:10px 12px">
-      <button class="btn full primary" ${canPlay?'':'disabled'} onclick="G.playSelected()">Play Selected Therapy</button>
-      <div class="tiny" style="margin-top:6px">${selCard?(selFresh?'You drew this card this turn — playable next turn.':selCard.effect):'Select a therapy card from your hand below.'}</div>
+      <div class="tiny" style="font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Draw Therapy Card</div>
+      <div class="stack">${deckButtons}</div>
     </div>
     ${game.pendingAction?`<button class="btn full ghost" onclick="G.cancelAction()">✕ Cancel current action</button>`:''}
   </div>`;
@@ -1731,18 +1869,15 @@ function setupPanel() {
 }
 
 function flarePanel() {
-  const fromCard = game.pendingAction === 'flareCard';
-  const card = fromCard ? curPlayer().hand[game.pendingCardIdx] : null;
   return `<div class="card warn">
     <div class="between">
-      <strong style="font-size:14px">${fromCard?'Anti-Cytokine Therapy':'Resolve the Flare'}</strong>
-      <span class="pill red">Flare!</span>
+      <strong style="font-size:14px">Budget Cut!</strong>
+      <span class="pill red">Cut!</span>
     </div>
     <div class="tiny" style="margin-top:8px;line-height:1.55">
-      Click any tissue tile on the board to move the flare marker. The new tile stops producing.
-      You'll then steal one resource from a player whose clinic borders it (if any).
+      Click any tile on the board to move the budget cut marker. That tile stops producing resources.
+      You may then divert one resource from a rival lab whose clinic borders it (if any).
     </div>
-    ${card?`<div class="tiny" style="margin-top:8px;color:var(--gold-deep)"><em>${escText(card.learn)}</em></div>`:''}
   </div>`;
 }
 
@@ -1754,10 +1889,10 @@ function discardPanel() {
   const isCurPlayer = dc.playerId === game.currentPlayer;
   return `<div class="card warn">
     <div class="between">
-      <strong style="font-size:14px">${isCurPlayer?'You owe':escText(p.name)+' owes'} a discard</strong>
+      <strong style="font-size:14px">${isCurPlayer?'You must return resources':escText(p.name)+' must return resources'}</strong>
       <span class="pill red">${totalPicked} / ${dc.owe}</span>
     </div>
-    <div class="tiny" style="margin-top:8px">A flare hits hard. Discard <strong>${dc.owe}</strong> of ${escText(p.name)}'s resources.</div>
+    <div class="tiny" style="margin-top:8px">Budget cut! Return <strong>${dc.owe}</strong> of ${escText(p.name)}'s resources to the bank.</div>
     <div class="discard-row" style="margin-top:10px">
       ${RESOURCES.map(r => `<div class="discard-cell">
         <div class="cost-chip ${r.key}">${p.resources[r.key]} ${r.short}</div>
@@ -1776,7 +1911,7 @@ function stealPanel() {
   const tile = game.board.tiles[game.stealTileId];
   return `<div class="card focus">
     <strong style="font-size:14px">Choose a player to steal from</strong>
-    <div class="tiny" style="margin-top:6px">The flare landed on ${escText(tile.site)}. Pick one bordering opponent.</div>
+    <div class="tiny" style="margin-top:6px">Funding was cut at ${escText(tile.site)}. Divert resources from one bordering rival lab.</div>
     <div class="row" style="margin-top:10px">
       ${game.stealOptions.map(pid => {
         const op = game.players[pid];
@@ -1789,50 +1924,67 @@ function stealPanel() {
   </div>`;
 }
 
-function plentyPanel() {
-  const need = 2 - game.tempPick.length;
-  return `<div class="card focus">
-    <strong style="font-size:14px">Choose ${need} more resource${need===1?'':'s'}</strong>
-    <div class="tiny" style="margin-top:6px">Take any resources from the bank.</div>
-    <div class="row" style="margin-top:10px">
-      ${RESOURCES.map(r => `<button class="btn small" ${game.bank[r.key]<=0?'disabled':''} onclick="G.resolvePlentyPick('${r.key}')">
-        <span class="cost-chip ${r.key}">${r.short}</span>
-      </button>`).join('')}
-    </div>
-    <button class="btn full ghost" style="margin-top:10px" onclick="G.cancelAction()">Cancel</button>
-  </div>`;
-}
+function plentyPanel() { /* removed */ }
 
-function monopolyPanel() {
-  return `<div class="card focus">
-    <strong style="font-size:14px">Choose one resource type</strong>
-    <div class="tiny" style="margin-top:6px">You'll take all cards of that type from every opponent.</div>
-    <div class="row" style="margin-top:10px">
-      ${RESOURCES.map(r => `<button class="btn small" onclick="G.resolveMonopolyPick('${r.key}')">
-        <span class="cost-chip ${r.key}">${r.short}</span>
-      </button>`).join('')}
-    </div>
-    <button class="btn full ghost" style="margin-top:10px" onclick="G.cancelAction()">Cancel</button>
-  </div>`;
-}
+function monopolyPanel() { /* removed */ }
 
 function renderHand(p) {
   p = p || curPlayer();
-  if (!p.hand.length) return '<div class="tiny">No therapy cards yet. Buy from the bank above.</div>';
-  return `<div class="therapy-list">${p.hand.map((c,i) => {
-    const fresh = p.handFresh.includes(i), sel = game.selectedCardIdx === i;
-    return `<div class="therapy${sel?' selected':''}${fresh?' fresh':''}" onclick="${fresh?'':('G.selectCard('+i+')')}">
-      <div class="title-row">
-        <div class="name">${escText(c.title)}</div>
-        <div class="kind">${kindLabel(c.kind)}</div>
-      </div>
-      <div class="desc">${escText(c.effect)}</div>
-      ${fresh?'<div class="tiny" style="margin-top:6px;color:var(--red)">Drawn this turn — playable next turn.</div>':''}
-    </div>`;
-  }).join('')}</div>`;
+  const isActive = !p.isAI && p.id === game.currentPlayer;
+  const ready = game.rolled && !game.moveFlareRequired && game.winner === null && isActive;
+
+  // Therapy hand section
+  const therapyHtml = (p.therapyHand || []).length === 0
+    ? '<div class="tiny">No therapy cards yet. Draw from a deck above.</div>'
+    : (p.therapyHand || []).map((c, i) => {
+        const sel = game.selectedCardIdx === i;
+        const canExchange = ready && !game.exchangedThisTurn && game.pendingAction === null && canAfford(p, {[c.deckType]:1});
+        const treatsMyDiseases = (p.diseases||[]).filter(d => c.treats.includes(d.id) && !(p.treatedDiseases||[]).includes(d.id));
+        return `<div class="therapy${sel?' selected':''}" onclick="G.selectCard(${i})">
+          <div class="title-row">
+            <div class="name">${escText(c.title)}</div>
+            <div class="kind">${c.deckType.toUpperCase()}</div>
+          </div>
+          <div class="desc">${escText(c.mechanism)}</div>
+          ${treatsMyDiseases.length?`<div class="tiny" style="margin-top:4px;color:var(--green)">Treats: ${treatsMyDiseases.map(d=>escText(d.name)).join(', ')}</div>`:'<div class="tiny" style="margin-top:4px;color:var(--muted)">Does not match your diseases.</div>'}
+          ${canExchange?`<button class="btn full ghost" style="margin-top:6px;font-size:11px" onclick="event.stopPropagation();G.exchangeTherapy(${i})">Exchange (costs 1 ${c.deckType.toUpperCase()})</button>`:''}
+        </div>`;
+      }).join('');
+
+  return `<div class="therapy-list">${therapyHtml}</div>`;
 }
 function kindLabel(k) {
-  return ({flare:'Move flare',plenty:'Take 2',monopoly:'Take all of',roads:'Free pathways',vp:'Hidden VP'})[k]||k;
+  return ({flare:'Redirect Funding',plenty:'Take 2',monopoly:'Take all of',roads:'Free pathways',vp:'Hidden VP'})[k]||k;
+}
+
+function renderMyDiseases(p) {
+  const DISEASE_EMOJI = {
+    ra:'🦴', sle:'🌙', ms:'🧠', t1d:'🩸', pso:'🔴',
+    ibd:'🌿', sjo:'💧', as:'🦷', ssc:'🫀', mg:'⚡'
+  };
+  if (!p || !(p.diseases||[]).length) {
+    return `<div class="tiny" style="color:var(--ink-faint)">No diseases assigned yet.</div>`;
+  }
+  const isActive = !p.isAI && p.id === game.currentPlayer;
+  const ready = !isSetup() && game.rolled && !game.moveFlareRequired && game.winner === null && isActive && game.pendingAction === null;
+  return (p.diseases||[]).map((d, di) => {
+    const done = (p.treatedDiseases||[]).includes(d.id);
+    const canTreat = ready && !done && (p.therapyHand||[]).some(c => c.treats.includes(d.id));
+    return `<div style="margin-bottom:8px;padding:8px;border-radius:6px;
+      background:${done?'#e8f5e9':'#fbeae7'};
+      border:1px solid ${done?'var(--green)':'var(--red)'}">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <span style="font-size:20px;line-height:1">${DISEASE_EMOJI[d.id]||'🔬'}</span>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:${done?'var(--green)':'var(--red)'}">
+            ${done?'✓ Treated':'● Untreated'}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--ink);margin-top:1px">${escText(d.name)}</div>
+          ${d.desc?`<div style="font-size:10px;color:var(--ink-soft);margin-top:3px;line-height:1.35">${escText(d.desc)}</div>`:''}
+        </div>
+      </div>
+      ${canTreat?`<button class="btn full go" style="margin-top:8px;font-size:11px" onclick="G.treatDisease(${di})">Apply Therapy →</button>`:''}
+    </div>`;
+  }).join('');
 }
 
 function renderTrade() {
@@ -1876,9 +2028,9 @@ function renderTileInspect() {
   const sel = game.selectedTileId;
   if (sel === null || sel === undefined) return '<div class="tiny">Click a tile on the board to learn what it represents.</div>';
   const t = game.board.tiles[sel];
-  if (t.type === 'trigger') return `<div><strong>${escText(t.site)} tile</strong></div>
-    <div class="tiny" style="margin-top:4px">No production. The flare starts here.</div>
-    <div class="tiny" style="margin-top:8px;line-height:1.55">Triggers can include genetics, infection, microbiome shifts, smoking, or other environmental factors. They can <em>start</em> autoimmune disease, but chronic disease reflects failed tolerance afterward.</div>`;
+  if (t.type === 'trigger') return `<div><strong>Trigger tile</strong></div>
+    <div class="tiny" style="margin-top:4px">No production. The budget cut starts here.</div>
+    <div class="tiny" style="margin-top:8px;line-height:1.55">Triggers — genetics, infection, microbiome shifts, smoking — can <em>start</em> autoimmune disease, but chronic disease reflects failed tolerance afterward. Removing the trigger rarely resolves established autoimmunity.</div>`;
   // Check if this tile has a port on any of its edges
   const tilePortInfo = (game.board.ports||[]).filter(port =>
     [port.v1, port.v2].some(vid => t.vertexIds.includes(vid)) &&
@@ -1891,11 +2043,10 @@ function renderTileInspect() {
       </div>`).join('')
     : '';
   return `<div class="between">
-    <div><strong>${escText(t.site)}</strong> <span class="tiny">· ${R[t.type].label} tile</span></div>
+    <div><strong>${escText(t.site)}</strong> <span class="tiny">· ${R[t.type].label}</span></div>
     <span class="pill mono-num">${t.number??'—'}</span>
   </div>
-  <div class="tiny" style="margin-top:6px;line-height:1.55">${escText(SITE_INFO[t.site]||'')}</div>
-  <div class="tiny" style="margin-top:6px;line-height:1.55"><em>${escText(R[t.type].desc)}</em></div>
+  <div class="tiny" style="margin-top:6px;line-height:1.6">${escText(SITE_INFO[t.site]||'')}</div>
   ${portHtml}`;
 }
 
@@ -1903,12 +2054,12 @@ function renderLegend() {
   return `<div class="card">
     <strong>Resources</strong>
     <div class="resource-row" style="margin-top:8px">
-      ${RESOURCES.map(r => `<div class="res-tile ${r.key}">
+      ${RESOURCES.map(r => `<div class="res-tile ${r.key}" onclick="G.showResourceInfo('${r.key}')" style="cursor:pointer" title="Click to learn more">
         <svg class="glyph" viewBox="-12 -12 24 24" aria-hidden="true">${RES_GLYPH[r.key]}</svg>
         <div class="label" style="font-size:10px">${r.short}</div>
       </div>`).join('')}
     </div>
-    <div class="tiny" style="margin-top:8px">CY cytokine · BC B-cell · TC T-cell · MY myeloid · TL tolerance</div>
+    <div class="tiny" style="margin-top:8px">CY cytokine · BC B-cell · TC T-cell · MY myeloid · AR adv. research</div>
   </div>`;
 }
 
@@ -1917,7 +2068,7 @@ function statusBanner() {
   if (!game) return '';
   if (game.winner !== null) {
     const w = game.players[game.winner];
-    return `<div class="status-banner win">🏆 ${escText(w.name)} wins with ${victoryPoints(w)} VP!</div>`;
+    return `<div class="status-banner win">🏆 ${escText(w.name)} wins — both diseases treated!</div>`;
   }
   if (isSetup()) {
     const p = activePlayer();
@@ -1925,29 +2076,37 @@ function statusBanner() {
     return `<div class="status-banner setup">Setup — ${escText(p.name)}: place a ${placing}</div>`;
   }
   const p = curPlayer();
-  if (game.aiThinking) return `<div class="status-banner ai">${escText(p.name)} (AI) is thinking…</div>`;
+  // Find the human player for personalised messages
+  const humanP = game.players.find(pl => !pl.isAI) || p;
+  const name = escText(humanP.name);
+
+  if (game.aiThinking) return `<div class="status-banner ai">${escText(p.name)} is taking their turn…</div>`;
   if (game.pendingAction === 'discard') {
     const dc = game.discardCurrent;
     const dp = game.players[dc.playerId];
-    return `<div class="status-banner warn">Flare! ${escText(dp.name)} must discard ${dc.owe} cards.</div>`;
+    const who = dp.isAI ? escText(dp.name) : name;
+    const youOrThey = dp.isAI ? 'must' : 'must';
+    return `<div class="status-banner warn">Budget Cuts — ${who} must return ${dc.owe} resources.</div>`;
   }
-  if (game.pendingAction === 'flareRoll' || game.pendingAction === 'flareCard' || game.moveFlareRequired)
-    return `<div class="status-banner warn">Move the flare — click a tile.</div>`;
+  if (game.pendingAction === 'flareRoll' || game.moveFlareRequired)
+    return `<div class="status-banner warn">Budget Cuts — ${p.isAI ? escText(p.name) : name}: click a tile to redirect funding.</div>`;
   if (game.pendingAction === 'steal')
-    return `<div class="status-banner warn">Choose a player to steal from.</div>`;
-  if (game.pendingAction === 'plenty')
-    return `<div class="status-banner info">Treg Boost — pick ${2-game.tempPick.length} more resource${2-game.tempPick.length===1?'':'s'}.</div>`;
-  if (game.pendingAction === 'monopoly')
-    return `<div class="status-banner info">Plasmapheresis — choose a resource type to take from all opponents.</div>`;
+    return `<div class="status-banner warn">${name} — choose a player to steal from.</div>`;
   if (game.pendingAction === 'pathway')
-    return `<div class="status-banner info">Click a glowing edge to place a pathway.</div>`;
+    return `<div class="status-banner info">${name}'s turn — click a glowing edge to place a pathway.</div>`;
   if (game.pendingAction === 'clinic')
-    return `<div class="status-banner info">Click a glowing intersection to build a clinic.</div>`;
+    return `<div class="status-banner info">${name}'s turn — click a glowing intersection to build a clinic.</div>`;
   if (game.pendingAction === 'research')
-    return `<div class="status-banner info">Click one of your clinics to upgrade it to a research center.</div>`;
+    return `<div class="status-banner info">${name}'s turn — click one of your clinics to upgrade it to a research center.</div>`;
   if (!game.rolled)
-    return `<div class="status-banner">${escText(p.name)}'s turn — roll the dice to begin.</div>`;
-  return `<div class="status-banner">${escText(p.name)}'s turn — build, trade, or end turn.</div>`;
+    return `<div class="status-banner">${name}'s turn — roll the dice to begin.</div>`;
+  // Hint if a treatment is available
+  const canTreatNow = !p.isAI && (p.diseases||[]).some(d =>
+    !(p.treatedDiseases||[]).includes(d.id) && (p.therapyHand||[]).some(c => c.treats.includes(d.id))
+  );
+  if (canTreatNow)
+    return `<div class="status-banner info">💊 ${name} — you can treat a disease! See "Your Diseases" on the right.</div>`;
+  return `<div class="status-banner">${name}'s turn — build, draw therapy, or end your turn.</div>`;
 }
 
 /* ── DICE DISPLAY ── */
@@ -1974,7 +2133,7 @@ function renderDice() {
     ${face(d1)}${face(d2)}
     <div class="die-total${isFlare?' flare-roll':''}">
       <span class="mono-num">${total}</span>
-      ${isFlare?'<div class="tiny" style="color:var(--red)">Flare!</div>':''}
+      ${isFlare?'<div class="tiny" style="color:var(--red)">Budget Cut!</div>':''}
     </div>
   </div>`;
 }
@@ -1984,9 +2143,20 @@ function render() {
   const root = document.getElementById('app');
   if (!game) { root.innerHTML = startScreen(); return; }
   if (game.winner !== null) { root.innerHTML = endgameModal(); return; }
+  window._ports = game.board.ports || [];
 
-  const p = curPlayer();
+  const p = activePlayer();
   const isAct = !isSetup() && !p.isAI;
+  // During AI turns, show the human player who played most recently
+  const viewPlayer = (() => {
+    if (!p.isAI) return p;
+    const n = game.players.length;
+    for (let i = 1; i <= n; i++) {
+      const prev = game.players[(game.currentPlayer - i + n) % n];
+      if (!prev.isAI) return prev;
+    }
+    return game.players[0]; // fallback: all AI
+  })();
 
   root.innerHTML = `
     <div class="layout">
@@ -2014,8 +2184,14 @@ function render() {
       </main>
 
       <aside class="sidebar right">
-        <div class="section-label">${p.isAI ? game.players[0].name+"'s Resources" : "Your Resources"}</div>
-        <div class="resource-row">${renderResources(p.isAI ? game.players[0] : p)}</div>
+        <div class="section-label">Your Resources</div>
+        <div class="resource-row">${renderResources(viewPlayer)}</div>
+
+        <div class="section-label" style="margin-top:12px">Your Diseases</div>
+        ${renderMyDiseases(viewPlayer)}
+
+        <div class="section-label" style="margin-top:12px">Your Therapy Cards</div>
+        ${isSetup()?'<div class="tiny">Available after setup.</div>':renderHand(viewPlayer)}
 
         <div class="section-label" style="margin-top:12px">Actions</div>
         ${renderActionPanel()}
@@ -2023,13 +2199,36 @@ function render() {
         <div class="section-label" style="margin-top:12px">Trade</div>
         ${renderTrade()}
 
-        <div class="section-label" style="margin-top:12px">${p.isAI ? game.players[0].name+"'s Therapy Cards" : "Your Therapy Cards"}</div>
-        ${isSetup()?'<div class="tiny">Available after setup.</div>':renderHand(p.isAI ? game.players[0] : p)}
-
         <div class="section-label" style="margin-top:12px">Tile Inspector</div>
         ${renderTileInspect()}
       </aside>
     </div>`;
+
+  // Setup handoff: show screen at start of each human player's setup turn
+  if (isSetup() && game.setup.awaitingPathFromVertex === null) {
+    const setupStep = game.setup.step;
+    const setupPid = game.setup.order[setupStep];
+    const setupP = game.players[setupPid];
+    const humanCount = game.players.filter(pl => !pl.isAI).length;
+    if (!setupP.isAI && humanCount > 1) {
+      const isFirstEver = setupStep === 0;
+      const isFirstForPlayer = !game.dealShownFor.has(setupPid);
+      const handoffKey = setupStep; // unique per step
+      if (!game.setupHandoffShownFor.has(handoffKey)) {
+        game.setupHandoffShownFor.add(handoffKey);
+        if (isFirstForPlayer) {
+          // Show disease deal; skip pass-screen for the very first player (step 0)
+          showPlayerDeal(setupP, null, isFirstEver);
+        } else if (!isFirstEver) {
+          // Second build phase: show plain handoff
+          showTurnHandoff(setupP, null);
+        }
+      }
+    } else if (!setupP.isAI && !game.dealShownFor.has(setupPid)) {
+      // Single human player: just show deal animation (no handoff needed)
+      showPlayerDeal(setupP, null);
+    }
+  }
 }
 
 /* ── START SCREEN ── */
@@ -2054,12 +2253,12 @@ function startScreen() {
 
       <!-- Title block -->
       <div class="start-title">Tolerance</div>
-      <div class="start-tagline">Build clinics, manage flares, and guide a misdirected immune system back toward self-tolerance.</div>
+      <div class="start-tagline">Collect resources, build research networks, and find the right therapies to treat your assigned autoimmune diseases.</div>
 
       <!-- Thematic intro -->
       <div class="start-intro">
-        <p>Autoimmunity is misdirected immunity — the immune system attacking healthy tissue because tolerance has failed. Collect immune resources from real disease sites, build clinics and research centers, and race to 10 victory points before your opponents do.</p>
-        <p>Roll to produce resources, trade with specialist ports on the board edge, play therapy cards to shift the balance, and manage flares that disrupt everyone's plans. Each card and site teaches a real piece of immunology along the way.</p>
+        <p>Each player is secretly assigned two autoimmune diseases — from rheumatoid arthritis to myasthenia gravis. Expand your clinic network across real disease sites, gather immune resources, and draw therapy cards from four specialist decks: Cytokine, B Cell, T Cell, and Myeloid.</p>
+        <p>Match the right drug to the right disease to treat it. The first researcher to treat both assigned diseases wins. Budget cuts, rival labs, and limited deck cards keep every turn unpredictable — and every card teaches real immunology along the way.</p>
       </div>
 
       <div class="start-rule"></div>
@@ -2102,28 +2301,240 @@ function hideRules() {
 /* ── ENDGAME MODAL ── */
 function endgameModal() {
   const w = game.players[game.winner];
-  const rows = game.players.slice().sort((a,b) => victoryPoints(b)-victoryPoints(a)).map(p => {
-    const vp = victoryPoints(p);
+  const rows = game.players.slice().sort((a,b) =>
+    (b.treatedDiseases||[]).length - (a.treatedDiseases||[]).length
+  ).map(p => {
+    const treated = (p.treatedDiseases||[]).length;
+    const diseaseNames = (p.diseases||[]).map(d => {
+      const done = (p.treatedDiseases||[]).includes(d.id);
+      return `<span style="color:${done?'var(--green)':'var(--red)'}">${escText(d.name)}</span>`;
+    }).join(', ');
     return `<div class="score-row${p.id===game.winner?' winner':''}">
       <span class="swatch" style="background:${p.colorHex}"></span>
       <span class="name">${escText(p.name)}</span>
-      <span class="mono-num">${vp} VP</span>
-    </div>`;
+      <span class="mono-num">${treated}/2 treated</span>
+    </div>
+    <div class="tiny" style="margin-left:24px;margin-bottom:8px">${diseaseNames}</div>`;
   }).join('');
+  const winDiseases = (w.diseases||[]).map(d => escText(d.name)).join(' & ');
   return `<div class="endgame-screen">
     <div class="endgame-card">
       <div class="trophy">🏆</div>
       <div class="winner-name">${escText(w.name)} wins!</div>
-      <div class="tiny" style="margin-top:4px">${victoryPoints(w)} victory points</div>
+      <div class="tiny" style="margin-top:4px">Successfully treated: ${winDiseases}</div>
       <div class="score-list" style="margin-top:20px">${rows}</div>
       <button class="btn full primary" style="margin-top:24px" onclick="G.restart()">Play Again</button>
     </div>
   </div>`;
 }
 
+
+/* ── TURN HANDOFF SCREEN ── */
+function showTurnHandoff(p, onDone) {
+  const overlay = document.createElement('div');
+  overlay.className = 'deal-overlay';
+
+  overlay.innerHTML = `
+    <div class="deal-eyebrow">Next Player</div>
+    <div class="deal-title" style="color:${p.colorHex}">${escText(p.name)}</div>
+    <div class="deal-subtitle">Pass the screen to <strong style="color:${p.colorHex}">${escText(p.name)}</strong>.</div>
+    <button class="btn primary deal-continue visible" id="handoff-btn">
+      Start My Turn →
+    </button>`;
+
+  document.body.appendChild(overlay);
+  overlay.querySelector('#handoff-btn').addEventListener('click', () => {
+    overlay.remove();
+    if (onDone) onDone();
+  });
+}
+
+/* ── DISEASE DEAL ANIMATION ── */
+function showPlayerDeal(p, onDone, skipPassScreen) {
+  // Don't show if already shown for this player
+  if (!game || game.dealShownFor.has(p.id)) { if (onDone) onDone(); return; }
+  game.dealShownFor.add(p.id);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'deal-overlay';
+  overlay.id = 'deal-overlay-active';
+
+  const DISEASE_EMOJI = {
+    ra:'🦴', sle:'🌙', ms:'🧠', t1d:'🩸', pso:'🔴',
+    ibd:'🌿', sjo:'💧', as:'🦷', ssc:'🫀', mg:'⚡'
+  };
+
+  const dismiss = () => {
+    if (overlay.parentNode) overlay.remove();
+    if (onDone) onDone();
+  };
+
+  // Phase 1: "Pass the screen" prompt — cards hidden (skip for first player)
+  overlay.innerHTML = skipPassScreen ? `
+    <div class="deal-eyebrow">Your Assignment</div>
+    <div class="deal-title" style="color:${p.colorHex}">${escText(p.name)}</div>
+    <div class="deal-subtitle">You have been assigned two autoimmune diseases to treat.</div>
+    <div class="deal-players" id="deal-cards-row"></div>
+    <button class="btn primary deal-continue" id="deal-continue-btn" style="display:none">
+      Place First Clinic →
+    </button>` : `
+    <div class="deal-eyebrow">Next Player</div>
+    <div class="deal-title" style="color:${p.colorHex}">${escText(p.name)}</div>
+    <div class="deal-subtitle">Pass the screen to <strong style="color:${p.colorHex}">${escText(p.name)}</strong> before continuing.</div>
+    <div class="deal-players" id="deal-cards-row" style="display:none"></div>
+    <button class="btn primary deal-continue visible" id="deal-see-btn">
+      See My Disease Cards →
+    </button>
+    <button class="btn primary deal-continue" id="deal-continue-btn" style="display:none">
+      Place First Clinic →
+    </button>`;
+
+  document.body.appendChild(overlay);
+
+  const row = overlay.querySelector('#deal-cards-row');
+  const cardsEl = document.createElement('div');
+  cardsEl.className = 'deal-player visible';
+  cardsEl.style.flexDirection = 'row';
+  cardsEl.innerHTML = `<div class="deal-cards">
+    ${(p.diseases||[]).map((d,di) => `
+      <div class="deal-card" id="pdc-${di}">
+        <div class="dc-label">Disease ${di+1}</div>
+        <div class="dc-pip" style="background:${p.colorHex}22;border:2px solid ${p.colorHex}">
+          ${DISEASE_EMOJI[d.id]||'🔬'}
+        </div>
+        <div class="dc-name">${escText(d.name)}</div>
+        <div class="dc-desc">${escText(d.desc||'')}</div>
+      </div>`).join('')}
+  </div>`;
+  row.appendChild(cardsEl);
+
+  // Phase 2: reveal cards when "See Cards" is clicked
+  // If skipPassScreen, reveal cards immediately without waiting for button
+  if (skipPassScreen) {
+    revealDealCards();
+  } else {
+    overlay.querySelector('#deal-see-btn').addEventListener('click', () => {
+      revealDealCards();
+    });
+  }
+
+  function revealDealCards() {
+    // Swap buttons and show card row
+    const seeBtn = overlay.querySelector('#deal-see-btn'); if (seeBtn) seeBtn.style.display = 'none';
+    overlay.querySelector('.deal-eyebrow').textContent = 'Your Assignment';
+    overlay.querySelector('.deal-subtitle').innerHTML = 'You have been assigned two autoimmune diseases to treat.';
+    row.style.display = '';
+
+    // Stagger card reveal
+    let delay = 150;
+    (p.diseases||[]).forEach((d, di) => {
+      setTimeout(() => {
+        const card = overlay.querySelector(`#pdc-${di}`);
+        if (card) card.classList.add('visible');
+      }, delay);
+      delay += 280;
+    });
+
+    // Show "Place First Clinic" button after cards appear
+    setTimeout(() => {
+      const btn = overlay.querySelector('#deal-continue-btn');
+      if (btn) { btn.style.display = ''; btn.classList.add('visible'); }
+    }, delay + 200);
+  }
+
+  overlay.querySelector('#deal-continue-btn').addEventListener('click', dismiss);
+}
+
 /* ── GLOBAL HOOK ── */
+function showResourceInfo(key) {
+  // Toggle off if same card clicked again
+  const existing = document.getElementById('res-tooltip');
+  if (existing) {
+    if (existing.dataset.key === key) { existing.remove(); return; }
+    existing.remove();
+  }
+  const info = RESOURCE_INFO[key];
+  if (!info) return;
+
+  const tip = document.createElement('div');
+  tip.id = 'res-tooltip';
+  tip.dataset.key = key;
+  tip.style.cssText = `position:fixed;z-index:900;background:#1d2330;color:#faf6ec;
+    border-radius:10px;padding:16px 20px;max-width:320px;font-size:13px;line-height:1.6;
+    box-shadow:0 4px 24px rgba(0,0,0,0.4);border-left:4px solid ${info.color};
+    bottom:80px;left:50%;transform:translateX(-50%);`;
+  tip.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px">
+      <div style="font-weight:800;font-size:15px;color:${info.color}">${info.label}</div>
+      <button onclick="document.getElementById('res-tooltip').remove()"
+        style="background:none;border:none;color:#faf6ec;font-size:18px;cursor:pointer;
+               line-height:1;padding:0;flex-shrink:0;opacity:0.7">✕</button>
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+                  color:${info.color};opacity:0.8;margin-bottom:3px">What is it?</div>
+      <div style="font-size:12px;opacity:0.9">${info.what}</div>
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+                  color:${info.color};opacity:0.8;margin-bottom:3px">Role in autoimmunity</div>
+      <div style="font-size:12px;opacity:0.9">${info.autoimmune}</div>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+                  color:${info.color};opacity:0.8;margin-bottom:3px">In the game</div>
+      <div style="font-size:12px;opacity:0.9">${info.game}</div>
+    </div>`;
+
+  document.body.appendChild(tip);
+  // Auto-dismiss after 12 s
+  setTimeout(() => { if (tip.parentNode) tip.remove(); }, 12000);
+}
+
+function showPortInfo(idx) {
+  // Remove any existing port tooltip (toggle off if same port clicked again)
+  const existing = document.getElementById('port-tooltip');
+  if (existing) { existing.remove(); return; }
+  const ports = window._ports || [];
+  const port = ports[idx];
+  if (!port) return;
+  // Resolve color: CSS variable or fallback
+  const isSpecific = port.type !== '3:1';
+  const COL_MAP = { cy:'#e74c3c', bc:'#8e44ad', tc:'#2980b9', my:'#27ae60' };
+  const col = isSpecific ? (COL_MAP[port.type] || '#8b7355') : '#8b7355';
+  const name = port.name;
+  const desc = port.desc;
+
+  const tip = document.createElement('div');
+  tip.id = 'port-tooltip';
+  tip.style.cssText = `position:fixed;z-index:900;background:#1d2330;color:#faf6ec;
+    border-radius:10px;padding:14px 18px;max-width:280px;font-size:13px;line-height:1.6;
+    box-shadow:0 4px 24px rgba(0,0,0,0.35);border-left:4px solid ${col};`;
+  tip.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div>
+        <div style="font-weight:800;font-size:14px;margin-bottom:4px">${name}</div>
+        <div style="font-size:12px;opacity:0.85">${desc}</div>
+        <div style="margin-top:8px;font-size:11px;opacity:0.6">Build a clinic on an adjacent vertex to access this port.</div>
+      </div>
+      <button onclick="document.getElementById('port-tooltip').remove()"
+        style="background:none;border:none;color:#faf6ec;font-size:18px;cursor:pointer;
+               line-height:1;padding:0;flex-shrink:0;opacity:0.7">✕</button>
+    </div>`;
+
+  // Position near centre of screen (safe fallback)
+  tip.style.bottom = '80px';
+  tip.style.left = '50%';
+  tip.style.transform = 'translateX(-50%)';
+  document.body.appendChild(tip);
+
+  // Auto-dismiss after 6 s
+  setTimeout(() => { if (tip.parentNode) tip.remove(); }, 6000);
+}
+
 window.G = {
   rollDice, endTurn, buyTherapy, playSelected: playSelectedCard,
+  drawTherapy, exchangeTherapy, treatDisease,
   setAction, cancelAction, setTrade, doTrade,
   clickTile, clickEdge, clickVertex,
   selectCard: (i) => { game.selectedCardIdx = i; render(); },
@@ -2176,7 +2587,7 @@ window.G = {
     scheduleAIIfNeeded();
   },
   restart: () => { game = null; render(); },
-  showRules, hideRules,
+  showRules, hideRules, showPortInfo, showResourceInfo,
 };
 
 /* ── KEYBOARD ── */
@@ -2192,27 +2603,46 @@ render();
 <!-- RULES MODAL -->
 <div id="rules-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center">
   <div style="background:#faf6ec;border-radius:12px;max-width:640px;width:90%;max-height:85vh;overflow-y:auto;padding:32px;position:relative">
-    <button onclick="G.hideRules()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#766b5a">✕</button>
-    <h2 style="font-family:'Fraunces',serif;font-size:24px;margin:0 0 16px">How to Play Tolerance</h2>
-    <div style="font-size:14px;line-height:1.7;color:#1d2330">
-      <p><strong>Goal:</strong> Be the first player to reach <strong>10 Victory Points</strong>.</p>
-      <p><strong>Setup:</strong> Each player places 2 clinics and 2 pathways on the board. The second clinic grants starting resources from adjacent tiles.</p>
-      <p><strong>On your turn:</strong></p>
-      <ol>
-        <li><strong>Roll</strong> the dice. All players collect resources from tiles matching the number (except the flare tile).</li>
-        <li>If a <strong>7</strong> is rolled, the flare moves. Players with 8+ cards must discard half.</li>
-        <li><strong>Build</strong> pathways (1 TC + 1 MY), clinics (1 BC + 1 TC + 1 MY + 1 TL), or research centers (3 CY + 2 BC). You can also buy or play therapy cards.</li>
-        <li><strong>End your turn.</strong></li>
-      </ol>
-      <p><strong>Victory Points:</strong> 1 VP per clinic · 2 VP per research center · 2 VP for Strongest Pathway · 2 VP for Most Care · 1–2 VP from hidden therapy cards.</p>
-      <p><strong>Therapy Cards:</strong> Anti-Cytokine moves the flare and steals a resource. Treg Boost gives 2 free resources. Plasmapheresis takes all of one resource from opponents. Costimulation Blockade gives 2 free pathways. JAK Inhibition gives 2 free pathways. Precision Breakthrough is worth 1 hidden VP.</p>
-      <p><strong>Trade:</strong> Trade 4 of any resource for 1 of any other with the bank. Build a clinic or research center on a <strong>port (⚕)</strong> to unlock better rates:</p>
-      <ul style="margin:4px 0 0 16px;font-size:13px;line-height:1.7">
-        <li><strong>Treatment Center</strong> — 3:1 any resource (build on any ⚕ circle on the board edge)</li>
-        <li><strong>Cytokine Lab / B-Cell Center / T-Cell Center / Myeloid Hub / Tolerance Institute</strong> — 2:1 for that specific resource</li>
-      </ul>
-      <p><strong>The Flare:</strong> The flare tile produces nothing. When it moves, the player who rolled may steal 1 resource from a bordering opponent.</p>
-    </div>
+    <button id="rules-close" onclick="document.getElementById('rules-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+    <h2 style="margin:0 0 16px">How to Play Tolerance</h2>
+
+    <h3 style="margin:12px 0 6px">Objective</h3>
+    <p style="margin:0 0 10px">Each player is secretly assigned <strong>2 autoimmune diseases</strong>. Be the first to collect the right therapy cards and treat both diseases to win.</p>
+
+    <h3 style="margin:12px 0 6px">Setup</h3>
+    <p style="margin:0 0 10px">Each player places 2 clinics and 2 pathways on the board, then receives starting resources. Disease cards are dealt face-up to each player at the start.</p>
+
+    <h3 style="margin:12px 0 6px">On Your Turn</h3>
+    <ol style="margin:0 0 10px;padding-left:20px;line-height:1.8">
+      <li><strong>Roll the dice.</strong> Every tile with a matching number produces resources for players with clinics or research centers on its corners.</li>
+      <li><strong>Build</strong> pathways (CY+AR), clinics (CY+BC+TC+MY), or research centers (BC+TC+MY+AR×2) to expand your network.</li>
+      <li><strong>Draw therapy cards</strong> from one of 4 decks — Cytokine, B Cell, T Cell, or Myeloid. Each costs 3 of that deck's resource + 1 each of the other three (6 total).</li>
+      <li><strong>Treat a disease</strong> by playing a therapy card that matches it. Click "Apply Therapy" in your hand panel.</li>
+      <li><strong>Exchange</strong> an unwanted therapy card back to the bottom of its deck (costs 1 of that resource, once per turn).</li>
+      <li><strong>Trade</strong> resources with the bank using port ratios, then end your turn.</li>
+    </ol>
+
+    <h3 style="margin:12px 0 6px">Therapy Decks</h3>
+    <ul style="margin:0 0 10px;padding-left:20px;line-height:1.8">
+      <li><strong style="color:#e74c3c">Cytokine (CY)</strong> — Anti-TNF, anti-IL-6, anti-IL-17, anti-IFN therapies</li>
+      <li><strong style="color:#8e44ad">B Cell (BC)</strong> — Anti-CD20 (rituximab), anti-BAFF, FcRn antagonists</li>
+      <li><strong style="color:#2980b9">T Cell (TC)</strong> — Co-stimulation blockade, anti-CD3, S1P modulators, gut-homing blockers</li>
+      <li><strong style="color:#27ae60">Myeloid (MY)</strong> — Anti-GM-CSF, TLR inhibitors, myeloid suppressor strategies</li>
+    </ul>
+
+    <h3 style="margin:12px 0 6px">Resources</h3>
+    <ul style="margin:0 0 10px;padding-left:20px;line-height:1.8">
+      <li><strong>CY</strong> Cytokine · <strong>BC</strong> B-Cell · <strong>TC</strong> T-Cell · <strong>MY</strong> Myeloid · <strong>AR</strong> Adv. Research</li>
+    </ul>
+
+    <h3 style="margin:12px 0 6px">Budget Cut (rolling 7)</h3>
+    <p style="margin:0 0 10px">Rolling 7 triggers a budget cut. Players with more than 9 resource cards must discard half. Then move the budget cut marker to any tile — that tile produces nothing while the marker sits on it.</p>
+
+    <h3 style="margin:12px 0 6px">Ports</h3>
+    <p style="margin:0 0 10px">Coastal ports offer better trade ratios. Specialised ports (2:1) trade one resource type at half cost. General Treatment Centers (3:1) accept any resource.</p>
+
+    <h3 style="margin:12px 0 6px">Winning</h3>
+    <p style="margin:0 0 0">The first player to treat both of their assigned diseases wins. Each disease requires a specific therapy card — read the card's "Treats" line to see which diseases it covers.</p>
   </div>
 </div>
 
