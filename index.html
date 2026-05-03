@@ -2727,48 +2727,191 @@ render();
 </script>
 
 <!-- RULES MODAL -->
-<div id="rules-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center">
-  <div style="background:#faf6ec;border-radius:12px;max-width:640px;width:90%;max-height:85vh;overflow-y:auto;padding:32px;position:relative">
-    <button id="rules-close" onclick="document.getElementById('rules-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer">✕</button>
-    <h2 style="margin:0 0 16px">How to Play Tolerance</h2>
+<div id="rules-modal" style="display:none;position:fixed;inset:0;background:rgba(20,15,5,0.6);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border:1px solid var(--rule);border-radius:10px;
+    max-width:660px;width:100%;max-height:88vh;overflow-y:auto;position:relative;
+    box-shadow:var(--shadow-2);">
 
-    <h3 style="margin:12px 0 6px">Objective</h3>
-    <p style="margin:0 0 10px">Each player is secretly assigned <strong>2 autoimmune diseases</strong>. Be the first to collect the right therapy cards and treat both diseases to win.</p>
+    <!-- Header -->
+    <div style="background:var(--paper-edge);border-bottom:1px solid var(--rule);
+      padding:24px 28px 20px;border-radius:10px 10px 0 0;position:sticky;top:0;z-index:1;">
+      <button onclick="document.getElementById('rules-modal').style.display='none'"
+        style="position:absolute;top:16px;right:18px;background:none;border:none;
+        font-size:18px;cursor:pointer;color:var(--ink-faint);line-height:1;"
+        onmouseover="this.style.color='var(--ink)'" onmouseout="this.style.color='var(--ink-faint)'">✕</button>
+      <div style="font-family:'Fraunces',Georgia,serif;font-style:italic;font-size:26px;
+        letter-spacing:-0.03em;color:var(--ink);margin-bottom:3px;">How to Play</div>
+      <div style="font-size:12px;color:var(--ink-faint);letter-spacing:0.3px;">
+        Tolerance — A Strategy Game About Autoimmunity
+      </div>
+    </div>
 
-    <h3 style="margin:12px 0 6px">Setup</h3>
-    <p style="margin:0 0 10px">Each player places 2 clinics and 2 pathways on the board, then receives starting resources. Disease cards are dealt face-up to each player at the start.</p>
+    <div style="padding:24px 28px 28px;display:flex;flex-direction:column;gap:22px;">
 
-    <h3 style="margin:12px 0 6px">On Your Turn</h3>
-    <ol style="margin:0 0 10px;padding-left:20px;line-height:1.8">
-      <li><strong>Roll the dice.</strong> Every tile with a matching number produces resources for players with clinics or research centers on its corners.</li>
-      <li><strong>Build</strong> pathways (CY+AR), clinics (CY+BC+TC+MY), or research centers (BC+TC+MY+AR×2) to expand your network.</li>
-      <li><strong>Draw therapy cards</strong> from one of 4 decks — Cytokine, B Cell, T Cell, or Myeloid. Each costs 3 of that deck's resource + 1 each of the other three (6 total).</li>
-      <li><strong>Treat a disease</strong> by playing a therapy card that matches it. Click "Apply Therapy" in your hand panel.</li>
-      <li><strong>Exchange</strong> an unwanted therapy card back to the bottom of its deck (costs 1 of that resource, once per turn).</li>
-      <li><strong>Trade</strong> resources with the bank using port ratios, then end your turn.</li>
-    </ol>
+      <!-- Objective -->
+      <div style="background:var(--paper-edge);border:1px solid var(--rule-soft);
+        border-radius:8px;padding:16px 18px;">
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--teal);font-weight:600;margin-bottom:8px;">Objective</div>
+        <p style="margin:0;font-size:14px;color:var(--ink);line-height:1.6;">
+          You are a physician-researcher assigned <strong>two patients</strong>, each with a different autoimmune disease.
+          Be the first to achieve <strong>durable immune tolerance</strong> in both — not by erasing disease,
+          but by bringing the immune system to lasting stability.
+        </p>
+      </div>
 
-    <h3 style="margin:12px 0 6px">Therapy Decks</h3>
-    <ul style="margin:0 0 10px;padding-left:20px;line-height:1.8">
-      <li><strong style="color:#e74c3c">Cytokine (CY)</strong> — Anti-TNF, anti-IL-6, anti-IL-17, anti-IFN therapies</li>
-      <li><strong style="color:#8e44ad">B Cell (BC)</strong> — Anti-CD20 (rituximab), anti-BAFF, FcRn antagonists</li>
-      <li><strong style="color:#2980b9">T Cell (TC)</strong> — Co-stimulation blockade, anti-CD3, S1P modulators, gut-homing blockers</li>
-      <li><strong style="color:#27ae60">Myeloid (MY)</strong> — Anti-GM-CSF, TLR inhibitors, myeloid suppressor strategies</li>
-    </ul>
+      <!-- Turn structure -->
+      <div>
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--teal);font-weight:600;margin-bottom:12px;">On Your Turn</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
 
-    <h3 style="margin:12px 0 6px">Resources</h3>
-    <ul style="margin:0 0 10px;padding-left:20px;line-height:1.8">
-      <li><strong>CY</strong> Cytokine · <strong>BC</strong> B-Cell · <strong>TC</strong> T-Cell · <strong>MY</strong> Myeloid · <strong>AR</strong> Adv. Research</li>
-    </ul>
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div style="min-width:24px;height:24px;border-radius:50%;background:var(--ink);
+              color:var(--card);font-size:11px;font-weight:700;display:flex;align-items:center;
+              justify-content:center;flex-shrink:0;margin-top:1px;">1</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:2px;">Roll the dice</div>
+              <div style="font-size:13px;color:var(--ink-soft);line-height:1.55;">
+                Every board tile has a number. When you roll it, all players with a clinic or research center
+                on that tile's corners collect the matching immune insight.
+              </div>
+            </div>
+          </div>
 
-    <h3 style="margin:12px 0 6px">Budget Cut (rolling 7)</h3>
-    <p style="margin:0 0 10px">Rolling 7 triggers a budget cut. Players with more than 9 resource cards must discard half. Then move the budget cut marker to any tile — that tile produces nothing while the marker sits on it.</p>
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div style="min-width:24px;height:24px;border-radius:50%;background:var(--ink);
+              color:var(--card);font-size:11px;font-weight:700;display:flex;align-items:center;
+              justify-content:center;flex-shrink:0;margin-top:1px;">2</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:2px;">Build your network <span style="font-size:12px;font-weight:400;color:var(--ink-faint)">(optional)</span></div>
+              <div style="font-size:13px;color:var(--ink-soft);line-height:1.55;">
+                Spend immune insight to expand your clinical infrastructure:
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">
+                <div style="background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:6px;padding:8px 10px;font-size:12px;">
+                  <div style="font-weight:700;color:var(--ink);margin-bottom:2px;">Pathway</div>
+                  <div style="color:var(--ink-faint);">CY + AR</div>
+                </div>
+                <div style="background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:6px;padding:8px 10px;font-size:12px;">
+                  <div style="font-weight:700;color:var(--ink);margin-bottom:2px;">Clinic</div>
+                  <div style="color:var(--ink-faint);">CY + BC + TC + MY</div>
+                </div>
+                <div style="background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:6px;padding:8px 10px;font-size:12px;">
+                  <div style="font-weight:700;color:var(--ink);margin-bottom:2px;">Research Center</div>
+                  <div style="color:var(--ink-faint);">BC + TC + MY + AR×2</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-    <h3 style="margin:12px 0 6px">Ports</h3>
-    <p style="margin:0 0 10px">Coastal ports offer better trade ratios. Specialised ports (2:1) trade one resource type at half cost. General Treatment Centers (3:1) accept any resource.</p>
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div style="min-width:24px;height:24px;border-radius:50%;background:var(--ink);
+              color:var(--card);font-size:11px;font-weight:700;display:flex;align-items:center;
+              justify-content:center;flex-shrink:0;margin-top:1px;">3</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:2px;">Draw a therapy card <span style="font-size:12px;font-weight:400;color:var(--ink-faint)">(optional)</span></div>
+              <div style="font-size:13px;color:var(--ink-soft);line-height:1.55;">
+                Draw from one of four specialist decks. Each costs <strong>3 of that deck's insight + 1 each of the other three</strong> (6 total).
+                You can also exchange an unwanted card back to its deck for 1 of that insight (once per turn).
+              </div>
+            </div>
+          </div>
 
-    <h3 style="margin:12px 0 6px">Winning</h3>
-    <p style="margin:0 0 0">The first player to treat both of their assigned diseases wins. Each disease requires a specific therapy card — read the card's "Treats" line to see which diseases it covers.</p>
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div style="min-width:24px;height:24px;border-radius:50%;background:var(--ink);
+              color:var(--card);font-size:11px;font-weight:700;display:flex;align-items:center;
+              justify-content:center;flex-shrink:0;margin-top:1px;">4</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:2px;">Treat a patient <span style="font-size:12px;font-weight:400;color:var(--ink-faint)">(when ready)</span></div>
+              <div style="font-size:13px;color:var(--ink-soft);line-height:1.55;">
+                If you hold a therapy card that matches one of your diseases, click
+                <strong>Apply Therapy</strong> in your disease panel. Treat both patients to win.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Therapy decks -->
+      <div>
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--teal);font-weight:600;margin-bottom:12px;">Therapy Decks</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="border-left:3px solid var(--cy);background:var(--card-soft);
+            border-radius:0 6px 6px 0;padding:10px 12px;">
+            <div style="font-size:13px;font-weight:700;color:var(--cy);margin-bottom:2px;">Cytokine (CY)</div>
+            <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Anti-TNF, anti-IL-6, anti-IL-17, anti-IFN therapies</div>
+          </div>
+          <div style="border-left:3px solid var(--bc);background:var(--card-soft);
+            border-radius:0 6px 6px 0;padding:10px 12px;">
+            <div style="font-size:13px;font-weight:700;color:var(--bc);margin-bottom:2px;">B Cell (BC)</div>
+            <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Anti-CD20, anti-BAFF, FcRn antagonists</div>
+          </div>
+          <div style="border-left:3px solid var(--tc);background:var(--card-soft);
+            border-radius:0 6px 6px 0;padding:10px 12px;">
+            <div style="font-size:13px;font-weight:700;color:var(--tc);margin-bottom:2px;">T Cell (TC)</div>
+            <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Co-stimulation blockade, S1P modulators, gut-homing blockers</div>
+          </div>
+          <div style="border-left:3px solid var(--my);background:var(--card-soft);
+            border-radius:0 6px 6px 0;padding:10px 12px;">
+            <div style="font-size:13px;font-weight:700;color:var(--my);margin-bottom:2px;">Myeloid (MY)</div>
+            <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;">Anti-GM-CSF, TLR inhibitors, myeloid suppressor strategies</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Immune insight -->
+      <div>
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--teal);font-weight:600;margin-bottom:10px;">Immune Insight Types</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span style="background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:20px;
+            padding:5px 12px;font-size:12px;font-weight:600;color:var(--cy);">CY Cytokine</span>
+          <span style="background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:20px;
+            padding:5px 12px;font-size:12px;font-weight:600;color:var(--bc);">BC B Cell</span>
+          <span style="background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:20px;
+            padding:5px 12px;font-size:12px;font-weight:600;color:var(--tc);">TC T Cell</span>
+          <span style="background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:20px;
+            padding:5px 12px;font-size:12px;font-weight:600;color:var(--my);">MY Myeloid</span>
+          <span style="background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:20px;
+            padding:5px 12px;font-size:12px;font-weight:600;color:var(--tl);">AR Advanced Research</span>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:var(--ink-faint);line-height:1.5;">
+          Click any insight tile or legend item in the game to learn what it represents biologically.
+        </div>
+      </div>
+
+      <!-- Budget cuts -->
+      <div style="background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:8px;padding:14px 16px;">
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--red);font-weight:600;margin-bottom:8px;">Budget Cuts (rolling 7)</div>
+        <p style="margin:0;font-size:13px;color:var(--ink-soft);line-height:1.6;">
+          Rolling a 7 triggers a budget cut. Any researcher holding more than 9 insight cards must return half.
+          The budget cut marker then moves to any tile of your choice — that tile produces nothing until the marker moves again.
+        </p>
+      </div>
+
+      <!-- Ports -->
+      <div>
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--teal);font-weight:600;margin-bottom:8px;">Ports &amp; Trading</div>
+        <p style="margin:0;font-size:13px;color:var(--ink-soft);line-height:1.6;">
+          Coastal ports let you trade insight with the bank at better rates.
+          <strong style="color:var(--ink);">Specialist ports (2:1)</strong> trade one insight type at half cost.
+          <strong style="color:var(--ink);">General ports (3:1)</strong> accept any insight type.
+          Build a pathway and clinic to reach a port and unlock its rate.
+        </p>
+      </div>
+
+      <!-- Close button -->
+      <button onclick="document.getElementById('rules-modal').style.display='none'"
+        class="btn full primary" style="margin-top:4px;">
+        Got it — let's play
+      </button>
+
+    </div>
   </div>
 </div>
 
