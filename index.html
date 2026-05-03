@@ -595,6 +595,10 @@ const THERAPY_DECKS = {
       mechanism:'Anti-BAFF-R antibody. Depletes B cells via a distinct receptor, reducing autoantibody-driven glandular and systemic inflammation.' },
     { deckType:'bc', title:'Ublituximab', treats:['ms','ra'],
       mechanism:'Glycoengineered anti-CD20 antibody with enhanced ADCC. Rapidly depletes B cells in MS and RA with a short infusion time.' },
+    { deckType:'bc', title:'Orelabrutinib', treats:['t1d','as'],
+      mechanism:'BTK inhibitor that blocks B-cell receptor signalling, reducing autoreactive B-cell activation and autoantibody production in T1D and ankylosing spondylitis.' },
+    { deckType:'bc', title:'Bimekizumab', treats:['pso','ibd'],
+      mechanism:'Dual anti-IL-17A/F antibody. IL-17 is partly produced by B cells and plasma cells; blocking both isoforms clears psoriatic plaques and reduces gut mucosal inflammation.' },
   ],
   tc: [
     { deckType:'tc', title:'Abatacept', treats:['ra','pso','as','ssc'],
@@ -672,6 +676,15 @@ const EDU_FACTS = [
   'The budget cut mechanic mirrors real research funding: when resources are scarce, labs must prioritise — just as grant cycles force difficult choices in immunology.',
   'Ports on the board represent specialist clinical and research facilities that can convert resources more efficiently — reflecting real-world translational medicine hubs.',
   'Building research centers upgrades your clinics to produce more resources, mirroring how academic medical centres amplify translational research output.',
+  'Joints are a primary target in rheumatoid arthritis: T cells and B cells attack the synovial lining, driving inflammation that erodes cartilage and bone. TNF, IL-6, and IL-17 are key cytokine culprits.',
+  'The skin is the site of psoriasis: dendritic cells activate T cells that flood the dermis, triggering keratinocytes to overproduce. The IL-23/IL-17 axis is the central driver.',
+  'The gut must tolerate trillions of commensal bacteria while fighting pathogens. When that balance breaks, chronic inflammation causes IBD — Crohn\'s disease and ulcerative colitis.',
+  'In multiple sclerosis, autoreactive T cells cross the blood-brain barrier and attack myelin, the insulating sheath around nerve fibres, causing relapsing-remitting symptoms.',
+  'In type 1 diabetes, cytotoxic T cells destroy insulin-producing beta cells of the pancreatic islets with remarkable specificity, leaving glucagon-secreting alpha cells intact.',
+  'Lupus nephritis occurs when autoantibodies form immune complexes that deposit in the kidney\'s glomeruli, activating complement and triggering inflammation.',
+  'Autoimmune uveitis — inflammation of the uveal tract — is often associated with systemic diseases like ankylosing spondylitis and Beh\u00e7et\'s disease.',
+  'Lymph nodes are where tolerance is taught and where it can fail. Regulatory T cells educated here patrol the periphery to suppress self-reactive clones.',
+  'Central B-cell tolerance begins in the bone marrow: developing B cells that bind self-antigens too strongly are deleted or edited before they enter circulation.',
 ];
 
 /* ── HELPERS ── */
@@ -1218,7 +1231,7 @@ function clickFlareTile(tileId) {
   if (tileId === game.flareTileId) return;
   const fromCard = (game.pendingAction === 'flareCard');
   game.flareTileId = tileId;
-  log(`${curPlayer().name} cut funding to the ${game.board.tiles[tileId].site} tile.`);
+  log(`${curPlayer().name} redirected funding away from a ${(R[game.board.tiles[tileId].type]||{label:'tile'}).label} tile.`);
   const cands = new Set();
   game.board.tiles[tileId].vertexIds.forEach(vId => {
     const occ = vertexAt(vId).occupant;
@@ -1281,6 +1294,7 @@ function setTrade(side, key) { game.trade[side] = key; render(); }
 function endTurn() {
   if (isSetup() || game.moveFlareRequired || game.winner !== null || !game.rolled) return;
   if (game.pendingAction !== null) return;
+  game.aiThinking = false;
   game.pendingAction = null; game.pendingCardIdx = null; game.selectedCardIdx = null;
   game.tempPick = []; game.freePathways = 0; game.rolled = false;
   game.diceA = null; game.diceB = null; game.dice = null;
@@ -1641,7 +1655,7 @@ function renderBoard() {
     const glyph = `<g transform="translate(${tile.x},${tile.y-18})" opacity="0.85">${RES_GLYPH[tile.type]||''}</g>`;
     const resLbl = tile.type === 'trigger'
       ? `<text x="${tile.x}" y="${tile.y+2}" text-anchor="middle" font-size="9" fill="#5b5048"
-           font-style="italic" font-family="'Fraunces',serif">no production</text>`
+           font-style="italic" font-family="'Fraunces',serif">funding gap</text>`
       : `<text x="${tile.x}" y="${tile.y+2}" text-anchor="middle" font-size="9" fill="#1d2330"
            font-weight="700" letter-spacing="0.08em" font-family="'Inter Tight',sans-serif">${(R[tile.type]||{short:tile.type.toUpperCase()}).short}</text>`;
 
@@ -1746,7 +1760,7 @@ function renderPlayerCards() {
           <span class="name">${escText(p.name)}</span>
           ${aiBadge}
         </div>
-        <span class="pill mono-num">${treated}/${total} cured</span>
+        <span class="pill mono-num">${treated}/${total} treated</span>
       </div>
       <div class="player-stats">
         <div class="stat"><div class="v mono-num">${p.clinics.length}</div><div class="k">Clinic</div></div>
@@ -1912,7 +1926,7 @@ function stealPanel() {
   const tile = game.board.tiles[game.stealTileId];
   return `<div class="card focus">
     <strong style="font-size:14px">Choose a player to steal from</strong>
-    <div class="tiny" style="margin-top:6px">Funding was cut at ${escText(tile.site)}. Divert resources from one bordering rival lab.</div>
+    <div class="tiny" style="margin-top:6px">Funding was cut at a ${(R[tile.type]||{label:'tile'}).label} hub. Divert resources from one bordering rival lab.</div>
     <div class="row" style="margin-top:10px">
       ${game.stealOptions.map(pid => {
         const op = game.players[pid];
@@ -2029,9 +2043,14 @@ function renderTileInspect() {
   const sel = game.selectedTileId;
   if (sel === null || sel === undefined) return '<div class="tiny">Click a tile on the board to learn what it represents.</div>';
   const t = game.board.tiles[sel];
-  if (t.type === 'trigger') return `<div><strong>Trigger tile</strong></div>
-    <div class="tiny" style="margin-top:4px">No production. The budget cut starts here.</div>
-    <div class="tiny" style="margin-top:8px;line-height:1.55">Triggers — genetics, infection, microbiome shifts, smoking — can <em>start</em> autoimmune disease, but chronic disease reflects failed tolerance afterward. Removing the trigger rarely resolves established autoimmunity.</div>`;
+  if (t.type === 'trigger') return `<div class="between">
+    <div><strong>Funding Gap</strong></div>
+    <span class="pill mono-num">—</span>
+  </div>
+  <div class="tiny" style="margin-top:6px;line-height:1.6">
+    This tile produces no immune insight. When a budget cut is triggered (roll of 7),
+    the funding cut marker is placed here — blocking production on this tile until it moves.
+  </div>`;
   // Check if this tile has a port on any of its edges
   const tilePortInfo = (game.board.ports||[]).filter(port =>
     [port.v1, port.v2].some(vid => t.vertexIds.includes(vid)) &&
@@ -2043,11 +2062,13 @@ function renderTileInspect() {
         ⚕ <strong>${escText(pt.name)}</strong> (${pt.ratio}:1) — ${escText(pt.desc)}
       </div>`).join('')
     : '';
+  const ri = RESOURCE_INFO[t.type] || {};
+  const desc = ri.game || ri.what || '';
   return `<div class="between">
-    <div><strong>${escText(t.site)}</strong> <span class="tiny">· ${R[t.type].label}</span></div>
+    <div><strong>${R[t.type].label}</strong></div>
     <span class="pill mono-num">${t.number??'—'}</span>
   </div>
-  <div class="tiny" style="margin-top:6px;line-height:1.6">${escText(SITE_INFO[t.site]||'')}</div>
+  <div class="tiny" style="margin-top:6px;line-height:1.6">${escText(desc)}</div>
   ${portHtml}`;
 }
 
@@ -2092,13 +2113,13 @@ function statusBanner() {
   if (game.pendingAction === 'flareRoll' || game.moveFlareRequired)
     return `<div class="status-banner warn">Budget Cuts — ${p.isAI ? escText(p.name) : name}: click a tile to redirect funding.</div>`;
   if (game.pendingAction === 'steal')
-    return `<div class="status-banner warn">${name} — choose a player to steal from.</div>`;
+    return `<div class="status-banner warn">${escText(p.name)} — choose a player to steal from.</div>`;
   if (game.pendingAction === 'pathway')
-    return `<div class="status-banner info">${name}'s turn — click a glowing edge to place a pathway.</div>`;
+    return `<div class="status-banner info">${escText(p.name)}'s turn — click a glowing edge to place a pathway.</div>`;
   if (game.pendingAction === 'clinic')
-    return `<div class="status-banner info">${name}'s turn — click a glowing intersection to build a clinic.</div>`;
+    return `<div class="status-banner info">${escText(p.name)}'s turn — click a glowing intersection to build a clinic.</div>`;
   if (game.pendingAction === 'research')
-    return `<div class="status-banner info">${name}'s turn — click one of your clinics to upgrade it to a research center.</div>`;
+    return `<div class="status-banner info">${escText(p.name)}'s turn — click one of your clinics to upgrade it to a research center.</div>`;
   if (!game.rolled)
     return `<div class="status-banner">${name}'s turn — roll the dice to begin.</div>`;
   // Hint if a treatment is available
