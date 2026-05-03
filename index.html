@@ -459,7 +459,8 @@ const TILE_FILL   = { cy:'#fadcd6', bc:'#fae0bf', tc:'#d3def0', my:'#dfd0e6', tl
 const TILE_STROKE = { cy:'#a4413e', bc:'#a87328', tc:'#3e5c8a', my:'#684086', tl:'#3d7651', trigger:'#766b5a' };
 const PLAYER_COLORS = ['var(--p1)','var(--p2)','var(--p3)','var(--p4)'];
 const PLAYER_HEX    = ['#c2453a','#2f6b6b','#b88a3e','#6e3d6a'];
-const DEFAULT_NAMES = ['Dr. Shen','Dr. Okafor','Dr. Reyes','Dr. Patel'];
+const DEFAULT_NAMES = ['Dr. Stauber','Dr. McGuire','Dr. Beatty','Dr. Samantaray'];
+const SHUFFLED_NAMES = DEFAULT_NAMES.slice().sort(() => Math.random() - 0.5);
 
 const SITES = [
   'Joint','Joint','Skin','Skin','Gut','Gut','CNS','CNS',
@@ -872,7 +873,7 @@ function createGame(count, names, aiFlags) {
 }
 
 let game = null;
-let startConfig = { count:4, names:DEFAULT_NAMES.slice(), aiFlags:[false,true,true,true] };
+let startConfig = { count:4, names:SHUFFLED_NAMES.slice(), aiFlags:[false,true,true,true] };
 let eduTimer = null;
 
 /* ── LOG + EDU ── */
@@ -2249,41 +2250,51 @@ function startScreen() {
     </div>`).join('');
 
   return `<div class="start-screen">
-    <div class="start-card">
+    <div class="start-card" style="width:min(440px,100%);">
 
-      <!-- Title block -->
-      <div class="start-title">Tolerance</div>
-      <div class="start-tagline">Collect resources, build research networks, and find the right therapies to treat your assigned autoimmune diseases.</div>
-
-      <!-- Thematic intro -->
-      <div class="start-intro">
-        <p>Each player is secretly assigned two autoimmune diseases — from rheumatoid arthritis to myasthenia gravis. Expand your clinic network across real disease sites, gather immune resources, and draw therapy cards from four specialist decks: Cytokine, B Cell, T Cell, and Myeloid.</p>
-        <p>Match the right drug to the right disease to treat it. The first researcher to treat both assigned diseases wins. Budget cuts, rival labs, and limited deck cards keep every turn unpredictable — and every card teaches real immunology along the way.</p>
+      <!-- Title -->
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;
+          color:var(--ink-faint);margin-bottom:10px;">A strategy game about autoimmunity</div>
+        <div class="start-title">Tolerance</div>
+        <div style="margin-top:12px;font-size:14px;color:var(--ink-soft);
+          line-height:1.6;font-style:italic;">
+          Your immune system is supposed to protect you.<br>
+          Sometimes it forgets the difference between enemy and self.
+        </div>
       </div>
 
       <div class="start-rule"></div>
 
       <!-- Config -->
-      <div class="start-section">
-        <label class="tiny">Number of players</label>
-        <div class="count-row">
-          ${[2,3,4].map(c => `<button class="btn small${n===c?' active':''}" onclick="G.setCount(${c})">${c}</button>`).join('')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+        <div>
+          <label class="tiny" style="display:block;margin-bottom:8px;">Players</label>
+          <div style="display:flex;gap:6px;">
+            ${[2,3,4].map(c => `<button class="btn small${n===c?' active':''}" onclick="G.setCount(${c})">${c}</button>`).join('')}
+          </div>
+        </div>
+        <div>
+          <label class="tiny" style="display:block;margin-bottom:8px;">Mode</label>
+          <div style="display:flex;gap:6px;">
+            <button class="btn small${allHuman?' active':''}" onclick="G.setAllHuman()">Human</button>
+            <button class="btn small${hasAI?' active':''}" onclick="G.setWithAI()">vs AI</button>
+          </div>
         </div>
       </div>
-      <div class="start-section">
-        <label class="tiny">Game mode</label>
-        <div class="count-row">
-          <button class="btn small${allHuman?' active':''}" onclick="G.setAllHuman()">All Human</button>
-          <button class="btn small${hasAI?' active':''}" onclick="G.setWithAI()">vs AI</button>
-        </div>
-      </div>
-      <div class="start-section">
-        <label class="tiny">Player names</label>
+
+      <div style="margin-bottom:22px;">
+        <label class="tiny" style="display:block;margin-bottom:8px;">Researcher names</label>
         <div id="player-rows">${playerRows}</div>
       </div>
 
-      <button class="btn full primary" style="margin-top:20px" onclick="G.showIntro()">Start Game</button>
-      <button class="btn full ghost" style="margin-top:8px" onclick="G.showRules()">How to Play</button>
+      <button class="btn full primary" onclick="G.showIntro()" style="font-size:15px;padding:13px;">
+        Start Game
+      </button>
+      <button class="btn full ghost" onclick="G.showRules()" style="margin-top:8px;">
+        How to Play
+      </button>
+
     </div>
   </div>`;
 }
@@ -2341,7 +2352,8 @@ function showIntro() {
           color:var(--teal);margin-bottom:8px;font-weight:600;">Your Role</div>
         <p style="margin:0;font-size:14px;color:var(--ink-soft);line-height:1.65;">
           You are a <strong style="color:var(--ink);">physician-researcher</strong>
-          at a cutting-edge immunology institute.
+          at a cutting-edge immunology institute specialising in
+          modern and next-generation immunotherapies.
           You have been assigned two patients, each living with a different
           autoimmune condition. Your mission: build clinical infrastructure,
           gather immune insight, and collect the right therapy cards
@@ -2667,7 +2679,7 @@ window.G = {
   resolvePlentyPick, resolveMonopolyPick,
   setCount: (n) => {
     startConfig.count = n;
-    startConfig.names = DEFAULT_NAMES.slice(0, n);
+    startConfig.names = SHUFFLED_NAMES.slice(0, n);
     // Preserve AI mode: player 0 always human, others follow current mode
     const wasAI = startConfig.aiFlags && startConfig.aiFlags.some((f,i) => i>0 && f);
     startConfig.aiFlags = Array.from({length:n}, (_,i) => i > 0 && wasAI);
@@ -2690,7 +2702,7 @@ window.G = {
     const n = startConfig.count;
     const names = Array.from({length:n}, (_,i) => {
       const el = document.getElementById('pname'+i);
-      return el ? el.value.trim() || DEFAULT_NAMES[i] : DEFAULT_NAMES[i];
+      return el ? el.value.trim() || startConfig.names[i] : startConfig.names[i];
     });
     // Read aiFlags from startConfig (set by setAllHuman/setWithAI/toggleAI)
     const aiFlags = startConfig.aiFlags || Array.from({length:n}, (_,i) => i > 0);
