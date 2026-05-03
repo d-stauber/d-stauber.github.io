@@ -2282,11 +2282,124 @@ function startScreen() {
         <div id="player-rows">${playerRows}</div>
       </div>
 
-      <button class="btn full primary" style="margin-top:20px" onclick="G.startGame()">Start Game</button>
+      <button class="btn full primary" style="margin-top:20px" onclick="G.showIntro()">Start Game</button>
       <button class="btn full ghost" style="margin-top:8px" onclick="G.showRules()">How to Play</button>
     </div>
   </div>`;
 }
+
+
+/* ── INTRO / BACKSTORY SCREEN ── */
+function showIntro() {
+  // Collect player names from the start screen inputs and save to startConfig
+  const n = startConfig.count;
+  const names = Array.from({length:n}, (_,i) => {
+    const el = document.getElementById('pname'+i);
+    return el ? el.value.trim() || DEFAULT_NAMES[i] : DEFAULT_NAMES[i];
+  });
+  startConfig.names = names;  // persist so startGame() can read them after DOM is replaced
+
+  const root = document.getElementById('app');
+  root.innerHTML = `
+  <div class="start-screen">
+    <div style="width:min(620px,100%);background:var(--card);border:1px solid var(--rule);
+      border-radius:8px;padding:40px 44px;box-shadow:var(--shadow-2);color:var(--ink);">
+
+      <!-- Header -->
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;
+          color:var(--ink-faint);margin-bottom:10px;">Welcome to</div>
+        <div style="font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:400;
+          font-size:42px;letter-spacing:-0.04em;color:var(--ink);">Tolerance</div>
+        <div style="font-size:14px;color:var(--ink-soft);margin-top:6px;font-style:italic;">
+          A Strategy Game About Autoimmunity
+        </div>
+      </div>
+
+      <div style="border-top:1px solid var(--rule);margin-bottom:24px;"></div>
+
+      <!-- Section 1: The Science -->
+      <div style="margin-bottom:24px;">
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--teal);margin-bottom:8px;font-weight:600;">The Science</div>
+        <p style="margin:0;font-size:14px;color:var(--ink-soft);line-height:1.65;">
+          Your immune system is built to protect you — but sometimes it loses
+          <em>tolerance</em> for your own body. In autoimmune disease, immune cells
+          mistake healthy tissue for a threat and attack it relentlessly.
+          Over <strong style="color:var(--ink);">80 distinct autoimmune diseases</strong>
+          affect roughly 1 in 12 people worldwide, from rheumatoid arthritis
+          and lupus to multiple sclerosis and Type 1 diabetes.
+          Each disease involves different parts of the immune system —
+          B cells, T cells, cytokines, myeloid cells — making treatment
+          a complex, personalised puzzle.
+        </p>
+      </div>
+
+      <!-- Section 2: Your Role -->
+      <div style="margin-bottom:24px;">
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--teal);margin-bottom:8px;font-weight:600;">Your Role</div>
+        <p style="margin:0;font-size:14px;color:var(--ink-soft);line-height:1.65;">
+          You are a <strong style="color:var(--ink);">physician-researcher</strong>
+          at a cutting-edge immunology institute.
+          You have been assigned two patients, each living with a different
+          autoimmune condition. Your mission: build clinical infrastructure,
+          gather immune insight, and collect the right therapy cards
+          to bring both patients to lasting tolerance.
+        </p>
+      </div>
+
+      <!-- Section 3: Why Two Diseases? -->
+      <div style="margin-bottom:24px;">
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--teal);margin-bottom:8px;font-weight:600;">Why Two Patients?</div>
+        <p style="margin:0;font-size:14px;color:var(--ink-soft);line-height:1.65;">
+          Autoimmune diseases rarely travel alone — patients often carry
+          overlapping conditions that share immune pathways.
+          Each researcher is secretly assigned two diseases at the start of the game.
+          Your diseases determine which therapy cards you need and which
+          immune insights to prioritise. Keep your assignments private —
+          every researcher is working toward their own patients.
+        </p>
+      </div>
+
+      <!-- Section 4: Goal -->
+      <div style="background:var(--card-soft);border:1px solid var(--rule-soft);
+        border-radius:8px;padding:18px 22px;margin-bottom:32px;">
+        <div style="font-size:10px;letter-spacing:2.5px;text-transform:uppercase;
+          color:var(--teal);margin-bottom:8px;font-weight:600;">Your Goal</div>
+        <p style="margin:0;font-size:14px;color:var(--ink);line-height:1.65;">
+          Be the first researcher to achieve
+          <strong>durable immune tolerance in both of your patients</strong>.
+          The goal is not to erase disease — it is to bring the immune system
+          to a stable, self-sustaining equilibrium where it no longer attacks
+          the body. Build pathways and clinics to collect immune insight,
+          draw therapy cards from four specialist decks, and apply the
+          right treatments. Budget cuts can slow your progress —
+          but every researcher at the table is working toward the same
+          scientific ideal.
+        </p>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center;">
+        <button onclick="G.startGame()" class="btn full primary" style="max-width:280px;margin:0 auto;">
+          Begin →
+        </button>
+        <div style="margin-top:12px;">
+          <button onclick="G.backToSetup()" style="
+            background:none;border:none;color:var(--ink-faint);
+            font-size:13px;cursor:pointer;text-decoration:underline;
+            text-underline-offset:3px;">
+            ← Back to setup
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>`;
+}
+
 
 /* ── RULES MODAL ── */
 function showRules() {
@@ -2587,7 +2700,8 @@ window.G = {
     scheduleAIIfNeeded();
   },
   restart: () => { game = null; render(); },
-  showRules, hideRules, showPortInfo, showResourceInfo,
+  backToSetup: () => { render(); },
+  showIntro, showRules, hideRules, showPortInfo, showResourceInfo,
 };
 
 /* ── KEYBOARD ── */
