@@ -1964,7 +1964,7 @@ function renderHand(p) {
   const ready = game.rolled && !game.moveFlareRequired && game.winner === null && isActive;
 
   if ((p.therapyHand || []).length === 0) {
-    return `<div class="tiny" style="color:var(--ink-faint);text-align:center;padding:12px 0">No therapy cards yet.<br>Draw from a deck above.</div>`;
+    return `<div class="tiny" style="color:var(--ink-faint);text-align:center;padding:12px 0">No therapy cards yet.<br>Draw from a deck below.</div>`;
   }
 
   // Only show selection panel for the active human player's own hand
