@@ -181,7 +181,7 @@ button,input,select{font:inherit;color:inherit;}
 .topbar{padding:14px 18px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
 
 /* ── BOARD ── */
-.board-wrap{padding:8px 14px 14px;display:grid;place-items:center;}
+.board-wrap{padding:8px 14px 0;display:grid;place-items:center;flex:1;min-height:0;}
 svg.board{width:100%;max-width:980px;height:auto;user-select:none;}
 .hex polygon{transition:filter .15s,stroke-width .15s;}
 .hex{cursor:pointer;}
@@ -287,7 +287,8 @@ svg.board{width:100%;max-width:980px;height:auto;user-select:none;}
 .layout{display:grid;grid-template-columns:300px 1fr 340px;gap:14px;min-height:100vh;padding:14px;}
 .sidebar{background:var(--card);border:1px solid var(--rule);border-radius:6px;
   box-shadow:var(--shadow-1);padding:16px;padding-left:20px;overflow-y:auto;max-height:calc(100vh - 28px);}
-.board-area{display:flex;flex-direction:column;gap:10px;min-width:0;}
+.board-area{display:flex;flex-direction:column;gap:10px;min-width:0;
+  height:calc(100vh - 28px);overflow-y:auto;position:sticky;top:14px;}
 .logo-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;
   padding-bottom:12px;border-bottom:1px solid var(--rule-soft);}
 .logo-text{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:400;
@@ -295,10 +296,13 @@ svg.board{width:100%;max-width:980px;height:auto;user-select:none;}
 .section-label{font-size:10px;text-transform:uppercase;letter-spacing:0.28em;color:var(--teal);
   font-weight:800;margin-bottom:8px;}
 .dice-area{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
-  padding:10px 14px;background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:5px;}
+  padding:10px 14px;background:var(--card-soft);border:1px solid var(--rule-soft);border-radius:5px;
+  position:sticky;bottom:0;z-index:10;
+  box-shadow:0 -2px 8px rgba(20,15,5,0.07);}
 
 /* ── STATUS BANNER ── */
 .status-banner{padding:10px 14px;border-radius:5px;font-size:13px;font-weight:600;
+  position:sticky;top:0;z-index:10;
   background:var(--card-soft);border:1px solid var(--rule-soft);color:var(--ink);}
 .status-banner.win{background:#f0f7e8;border-color:var(--tl);color:var(--tl);}
 .status-banner.setup{background:#ecf3f3;border-color:var(--teal);color:var(--teal);}
@@ -343,7 +347,20 @@ svg.board{width:100%;max-width:980px;height:auto;user-select:none;}
 
 /* ── RESPONSIVE ── */
 @media(max-width:1200px){.layout{grid-template-columns:260px 1fr 300px;}}
-@media(max-width:960px){.layout{grid-template-columns:1fr;}.sidebar{max-height:none;}}
+@media(max-width:960px){
+  .layout{grid-template-columns:1fr;}
+  .sidebar{max-height:none;overflow-y:visible;}
+  /* On mobile the board column flows naturally — no fixed height, no sticky trapping */
+  .board-area{height:auto;overflow-y:visible;position:static;}
+  .board-wrap{padding:8px 14px 0;}
+  /* Dice bar stays sticky to the viewport bottom on mobile too, but via fixed positioning */
+  .dice-area{position:fixed;bottom:0;left:0;right:0;border-radius:0;z-index:50;
+    border-left:none;border-right:none;border-bottom:none;}
+  /* Add padding so the last sidebar content isn't hidden behind the fixed dice bar */
+  .sidebar.right{padding-bottom:80px;}
+  /* Status banner: sticky to viewport top on mobile */
+  .status-banner{position:sticky;top:0;z-index:40;}
+}
 
 
 /* ── PORTS ── */
