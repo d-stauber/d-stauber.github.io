@@ -360,6 +360,28 @@ svg.board{width:100%;max-width:980px;height:auto;user-select:none;}
   .sidebar.right{padding-bottom:80px;}
   /* Status banner: sticky to viewport top on mobile */
   .status-banner{position:sticky;top:0;z-index:40;}
+
+  /* ── DEAL OVERLAY: mobile ── */
+  /* Make overlay scrollable so button is always reachable */
+  .deal-overlay{
+    justify-content:flex-start;
+    overflow-y:auto;
+    padding:20px 16px 32px;
+    gap:16px;
+  }
+  /* Shrink title on mobile */
+  .deal-title{font-size:clamp(22px,6vw,32px);}
+  .deal-subtitle{font-size:13px;}
+  /* Stack cards vertically and shrink them */
+  .deal-cards{flex-direction:column;align-items:center;gap:16px;}
+  .deal-card{width:min(280px,80vw);}
+  .deal-card img{height:min(340px,45vh);}
+  /* Ensure continue button is always visible and easy to tap */
+  .deal-continue{
+    position:sticky;bottom:0;
+    width:min(280px,80vw);
+    margin-top:4px;
+  }
 }
 
 
